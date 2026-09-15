@@ -6,9 +6,9 @@ x-app-env: &app-env
   SESSION_COOKIE_SECURE: "true"
   TRUST_PROXY: "true"
   DATABASE_URL: postgresql://lake_tech:lake_tech_local_dev@postgres:5432/lake_tech
-  OTP_HMAC_SECRET: ${OTP_HMAC_SECRET:-}
-  SESSION_HMAC_SECRET: ${SESSION_HMAC_SECRET:-}
-  TERMINAL_SECRET_ENCRYPTION_KEY: ${TERMINAL_SECRET_ENCRYPTION_KEY:-}
+  OTP_HMAC_SECRET: ${OTP_HMAC_SECRET:-simulation-only-change-this-32-char-key}
+  SESSION_HMAC_SECRET: ${SESSION_HMAC_SECRET:-simulation-session-change-this-32-key}
+  TERMINAL_SECRET_ENCRYPTION_KEY: ${TERMINAL_SECRET_ENCRYPTION_KEY:-simulation-terminal-encryption-key-change-this}
   SIMULATION_MODE: "true"
   SL_BOT_SIMULATION_MODE: "false"
   ALLOW_SIMULATION_IN_PRODUCTION: "true"
@@ -45,7 +45,7 @@ services:
     command: ["npm", "run", "db:seed"]
     environment:
       DATABASE_URL: postgresql://lake_tech:lake_tech_local_dev@postgres:5432/lake_tech
-      TERMINAL_SECRET_ENCRYPTION_KEY: ${TERMINAL_SECRET_ENCRYPTION_KEY:-}
+      TERMINAL_SECRET_ENCRYPTION_KEY: ${TERMINAL_SECRET_ENCRYPTION_KEY:-simulation-terminal-encryption-key-change-this}
     depends_on:
       migrate:
         condition: service_completed_successfully
