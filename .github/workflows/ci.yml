@@ -14,7 +14,6 @@ jobs:
           --health-cmd "pg_isready -U lake_tech" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql://lake_tech:lake_tech@localhost:5432/lake_tech
-      NODE_ENV: production
       PUBLIC_SCHEME: http
       PUBLIC_BASE_URL: http://localhost:3000
       SESSION_COOKIE_SECURE: "false"
