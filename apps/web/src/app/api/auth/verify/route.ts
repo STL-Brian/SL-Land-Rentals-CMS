@@ -9,13 +9,16 @@ export async function POST(req: Request) {
     const cfg = env();
     assertBrowserOrigin(req.headers, cfg.baseUrl);
     const { username, code } = challengeVerifySchema.parse(await req.json());
-    const token = await verifyChallenge(username, code, clientIp(req.headers, cfg.trustProxy));
-    if (!token) {
+    const result = await verifyChallenge(username, code, clientIp(req.headers, cfg.trustProxy));
+    if (!result) {
       return NextResponse.json({ message: "That code is invalid or expired." }, { status: 401, headers: noStoreHeaders });
     }
-    if (token.startsWith("SETUP:")) return NextResponse.json({ setup: true, grant: token.slice(6) }, { headers: noStoreHeaders });
-    const response = NextResponse.json({ redirect: "/admin" }, { headers: noStoreHeaders });
-    response.cookies.set("lte_session", token, sessionCookieOptions(cfg.cookieSecure));
+    if (typeof result === "string" && result.startsWith("SETUP:")) {
+      return NextResponse.json({ setup: true, grant: result.slice(6) }, { headers: noStoreHeaders });
+    }
+    if (typeof result === "string") return NextResponse.json({ message: "That code is invalid or expired." }, { status: 401, headers: noStoreHeaders });
+    const response = NextResponse.json({ redirect: result.redirect }, { headers: noStoreHeaders });
+    response.cookies.set("lte_session", result.token, sessionCookieOptions(cfg.cookieSecure));
     return response;
   } catch {
     return NextResponse.json({ message: "That code is invalid or expired." }, { status: 401, headers: noStoreHeaders });

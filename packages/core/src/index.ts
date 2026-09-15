@@ -123,6 +123,35 @@ export function verifyTerminalSignature(input: TerminalSignatureInput, secret: s
   return expected.length === received.length && timingSafeEqual(expected, received);
 }
 
+export interface TerminalCallbackEnvelopeInput {
+  eventId: string;
+  kind: string;
+  sequence: number;
+  payload: unknown;
+  createdAt: string;
+}
+
+/** The outer body is LSL-compatible: LSL verifies HMAC(secret, signedBody). */
+export function createTerminalCallbackEnvelope(input: TerminalCallbackEnvelopeInput, secret: string): { body: string; signedBody: string; signature: string } {
+  if (!/^[A-Za-z0-9_.:-]{1,256}$/.test(input.eventId) || !/^[A-Za-z0-9_.:-]{1,64}$/.test(input.kind) || !Number.isSafeInteger(input.sequence) || input.sequence < 1 || !input.createdAt || input.payload === undefined) {
+    throw new Error("invalid terminal callback envelope");
+  }
+  const signedBody = JSON.stringify({ version: 1, eventId: input.eventId, kind: input.kind, sequence: input.sequence, payload: input.payload, createdAt: input.createdAt });
+  if (signedBody === undefined) throw new Error("invalid terminal callback payload");
+  const signature = createHmac("sha256", secret).update(signedBody, "utf8").digest("base64");
+  return { body: JSON.stringify({ version: 1, signedBody, signature }), signedBody, signature };
+}
+
+export function verifyTerminalCallbackEnvelope(body: string, secret: string): boolean {
+  if (typeof body !== "string" || body.length > 256 * 1024) return false;
+  let outer: { version?: unknown; signedBody?: unknown; signature?: unknown };
+  try { outer = JSON.parse(body) as typeof outer; } catch { return false; }
+  if (outer.version !== 1 || typeof outer.signedBody !== "string" || typeof outer.signature !== "string" || !/^[A-Za-z0-9+/]{43}=$/.test(outer.signature)) return false;
+  const expected = Buffer.from(createHmac("sha256", secret).update(outer.signedBody, "utf8").digest("base64"), "base64");
+  const received = Buffer.from(outer.signature, "base64");
+  return expected.length === received.length && timingSafeEqual(expected, received);
+}
+
 export function assertFreshTimestamp(timestamp: string, nowMs = Date.now(), windowSeconds = 300): void {
   const seconds = Number(timestamp);
   if (!Number.isInteger(seconds) || Math.abs(Math.floor(nowMs / 1000) - seconds) > windowSeconds) {

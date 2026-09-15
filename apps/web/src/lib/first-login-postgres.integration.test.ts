@@ -65,8 +65,9 @@ describe("first Second Life login", () => {
       expect(verifyOtp(otp!, challenge.rows[0]!.otp_digest, process.env.OTP_HMAC_SECRET!, row.id)).toBe(true);
 
       const setup = await verifyChallenge(canonical, otp!, ip);
+      expect(typeof setup).toBe("string");
       expect(setup).toMatch(/^SETUP:/);
-      const session = await completePasswordSetup(setup!.slice(6), "correct horse battery staple", ip);
+      const session = await completePasswordSetup((setup as string).slice(6), "correct horse battery staple", ip);
       expect(session).not.toBeNull();
       const provisioned = await db.query("SELECT u.role,i.avatar_id FROM users u JOIN sl_identities i ON i.user_id=u.id WHERE i.canonical_username=$1", [canonical]);
       expect(provisioned.rows).toEqual([{ role: "RESIDENT", avatar_id: avatarId }]);

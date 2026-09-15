@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canonicalTerminalSignature,
+  createTerminalCallbackEnvelope,
   createOtp,
   createSessionToken,
   digestOtp,
@@ -14,6 +15,7 @@ import {
   sealTerminalSecret,
   verifyOtp,
   verifyTerminalSignature,
+  verifyTerminalCallbackEnvelope,
 } from "./index.js";
 
 describe("OTP and sessions", () => {
@@ -68,6 +70,17 @@ describe("terminal security", () => {
     const tampered = Buffer.from(sealed, "base64url");
     tampered[tampered.length - 1] = tampered[tampered.length - 1]! ^ 1;
     expect(() => openTerminalSecret(tampered.toString("base64url"), encryptionKey)).toThrow();
+  });
+
+  it("creates an LSL-compatible body envelope with a signature over exact signedBody", () => {
+    const envelope = createTerminalCallbackEnvelope({ eventId: "evt-1", kind: "PAYMENT_RESULT", sequence: 7, payload: { status: "CONFIRMED" }, createdAt: "2026-09-15T12:00:00.000Z" }, "callback-secret");
+    expect(envelope.signedBody).toBe('{"version":1,"eventId":"evt-1","kind":"PAYMENT_RESULT","sequence":7,"payload":{"status":"CONFIRMED"},"createdAt":"2026-09-15T12:00:00.000Z"}');
+    expect(envelope.signature).toBe("99lHXYkOIyku/AaIjh29k4Ts0kiHqnKev0iVvyT8/jo=");
+    expect(JSON.parse(envelope.body)).toEqual({ version: 1, signedBody: envelope.signedBody, signature: envelope.signature });
+    expect(JSON.parse(envelope.signedBody)).toEqual({ version: 1, eventId: "evt-1", kind: "PAYMENT_RESULT", sequence: 7, payload: { status: "CONFIRMED" }, createdAt: "2026-09-15T12:00:00.000Z" });
+    expect(verifyTerminalCallbackEnvelope(envelope.body, "callback-secret")).toBe(true);
+    expect(verifyTerminalCallbackEnvelope(envelope.body.replace(envelope.signature, "0".repeat(44)), "callback-secret")).toBe(false);
+    expect(verifyTerminalCallbackEnvelope(envelope.body, "wrong-secret")).toBe(false);
   });
 });
 

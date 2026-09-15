@@ -59,6 +59,9 @@ export async function requestChallenge(username: string, ip: string): Promise<vo
   });
   if (!allowed) return;
 
+  const existing = await query<{ active: boolean }>("SELECT u.active FROM users u JOIN sl_identities sli ON sli.user_id=u.id WHERE sli.canonical_username=$1 LIMIT 1", [canonical]);
+  if (existing.rows[0] && !existing.rows[0].active) return;
+
   const avatarId = await resolveAvatar(canonical);
   const resolveViaBot = process.env.SL_BOT_SIMULATION_MODE === "false";
   if (!avatarId && !resolveViaBot) return;
@@ -86,6 +89,22 @@ export async function requestChallenge(username: string, ip: string): Promise<vo
       "INSERT INTO bot_outbox(avatar_id,target_username,kind,payload,challenge_id,expires_at) VALUES($1,$2,'LOGIN_OTP',$3::jsonb,$4,now()+interval '10 minutes')",
       [avatarId, avatarId ? null : canonical, JSON.stringify({ sealed: sealMessage(`Lake Tech Estates login code: ${otp}. Expires in 10 minutes.`, cfg.otpSecret) }), id],
     );
+  });
+}
+
+export async function changePassword(userId: string, currentPassword: string, password: string): Promise<string | null> {
+  return transaction(async db => {
+    const found = await db.query<{ password_hash: string | null }>("SELECT password_hash FROM users WHERE id=$1 AND active FOR UPDATE", [userId]);
+    const currentHash = found.rows[0]?.password_hash;
+    if (!currentHash || !await verifyPassword(currentPassword, currentHash)) return null;
+    const passwordHash = await hashPassword(password);
+    const token = createSessionToken();
+    await db.query("DELETE FROM sessions WHERE user_id=$1", [userId]);
+    const updated = await db.query("UPDATE users SET password_hash=$2,password_changed_at=now() WHERE id=$1 AND active RETURNING id", [userId, passwordHash]);
+    if (!updated.rowCount) return null;
+    await db.query("INSERT INTO sessions(user_id,token_hash,expires_at) VALUES($1,$2,now()+interval '30 days')", [userId, hashSessionToken(token)]);
+    await db.query("INSERT INTO audit_log(actor_user_id,action,target_type,target_id) VALUES($1,'PASSWORD_CHANGED','USER',$1)", [userId]);
+    return token;
   });
 }
 
@@ -124,7 +143,7 @@ export async function completePasswordSetup(grant: string, password: string, ip:
   });
 }
 
-export async function loginWithPassword(username: string, password: string, ip: string): Promise<string | null> {
+export async function loginWithPassword(username: string, password: string, ip: string): Promise<{ token: string; redirect: string } | null> {
   const canonical = canonicalUsername(username);
   if (!canonical) return null;
   const allowed = await transaction(async db => consumeLoginRateLimit(db, "password-login", ip, canonical, 50, 10, 600));
@@ -140,10 +159,12 @@ export async function loginWithPassword(username: string, password: string, ip: 
     const token = createSessionToken();
     await db.query("INSERT INTO sessions(user_id,token_hash,expires_at) VALUES($1,$2,now()+interval '30 days')", [found.rows[0]!.id, hashSessionToken(token)]);
     await db.query("INSERT INTO audit_log(actor_user_id,action,target_type,target_id) VALUES($1,'LOGIN','SESSION',$2)", [found.rows[0]!.id, hashSessionToken(token)]);
-    return token;
+    const role = (await db.query<{ role: UserRole }>("SELECT role FROM users WHERE id=$1 AND active", [found.rows[0]!.id])).rows[0]?.role;
+    if (!role) return null;
+    return { token, redirect: defaultAuthenticatedPath(role) };
   });
 }
-export async function verifyChallenge(username: string, code: string, ip: string): Promise<string | null> {
+export async function verifyChallenge(username: string, code: string, ip: string): Promise<string | { token: string; redirect: string } | null> {
   const cfg = env();
   const canonical = canonicalUsername(username);
   if (!canonical) return null;
@@ -184,6 +205,8 @@ export async function verifyChallenge(username: string, code: string, ip: string
       await db.query("INSERT INTO auth_grants(user_id,avatar_id,canonical_username,purpose,token_hash,expires_at) VALUES($1,$2,$3,'PASSWORD_SETUP',$4,now()+interval '15 minutes')", [userId, challenge.avatar_id, canonical, hashSessionToken(setupToken)]);
       return `SETUP:${setupToken}`;
     }
+    const role = (await db.query<{ role: UserRole }>("SELECT role FROM users WHERE id=$1 AND active", [userId])).rows[0]?.role;
+    if (!role) return null;
     const token = createSessionToken();
     await db.query(
       "INSERT INTO sessions(user_id,token_hash,expires_at) VALUES($1,$2,now()+interval '30 days')",
@@ -193,7 +216,7 @@ export async function verifyChallenge(username: string, code: string, ip: string
       "INSERT INTO audit_log(actor_user_id,action,target_type,target_id) VALUES($1,'LOGIN','SESSION',$2)",
       [userId, challenge.id],
     );
-    return token;
+    return { token, redirect: defaultAuthenticatedPath(role) };
   });
 }
 

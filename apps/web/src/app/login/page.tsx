@@ -40,7 +40,7 @@ export default function LoginPage() {
   }
 
   const title = stage === "username" ? "Sign in" : stage === "password" ? "Enter your password" : stage === "otp" ? "Verify your account" : "Set your password";
-  return <main className="auth-page"><section className="auth-card" aria-labelledby="login-title">
+  return <section className="auth-page" aria-labelledby="login-title"><section className="auth-card">
     <p className="eyebrow">Resident portal</p><h1 id="login-title">{title}</h1>
     <p>{stage === "username" ? "Start with your Second Life username." : stage === "password" ? "Use your password, or choose one-time code access instead." : stage === "setup" ? "Choose a password for future sign-ins without Second Life." : "The one-time code is delivered to your linked avatar and expires after ten minutes."}</p>
     <form className="modern-form" onSubmit={submit}>
@@ -53,5 +53,5 @@ export default function LoginPage() {
         {stage !== "username" && <button type="button" className="button secondary" onClick={() => { setStage("username"); setPassword(""); setConfirmation(""); setCode(""); setMessage(""); }} disabled={busy}>Use another account</button>}
       </FormActions>
     </form>{message && <p className="form-message" role="status">{message}</p>}
-  </section></main>;
+  </section></section>;
 }

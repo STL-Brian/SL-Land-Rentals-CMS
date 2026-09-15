@@ -76,11 +76,46 @@ retryQueue() {
         if (packed != "") sendPayment(queueKey, llJsonGetValue(packed, ["eventId"]), llJsonGetValue(packed, ["body"]));
     }
 }
+callbackResponse(key requestID, integer status, string message) {
+    llHTTPResponse(requestID, status, message);
+}
+handleCallback(key requestID, string body) {
+    // The worker sends {version,signedBody,signature}; only signedBody is authenticated.
+    if (llJsonValueType(body, []) != JSON_OBJECT) { callbackResponse(requestID, 400, "invalid callback"); return; }
+    if ((integer)llJsonGetValue(body, ["version"]) != 1) { callbackResponse(requestID, 400, "unsupported callback version"); return; }
+    string signedBody = llJsonGetValue(body, ["signedBody"]);
+    string signature = llJsonGetValue(body, ["signature"]);
+    if (signedBody == JSON_INVALID || signature == JSON_INVALID || llHMAC(TERMINAL_SECRET, signedBody, "sha256") != signature) { callbackResponse(requestID, 401, "invalid callback signature"); return; }
+    if (llJsonValueType(signedBody, []) != JSON_OBJECT || (integer)llJsonGetValue(signedBody, ["version"]) != 1) { callbackResponse(requestID, 400, "invalid signed callback"); return; }
+    string eventID = llJsonGetValue(signedBody, ["eventId"]);
+    string kind = llJsonGetValue(signedBody, ["kind"]);
+    integer sequence = (integer)llJsonGetValue(signedBody, ["sequence"]);
+    string createdAt = llJsonGetValue(signedBody, ["createdAt"]);
+    if (eventID == JSON_INVALID || kind == JSON_INVALID || sequence < 1 || createdAt == JSON_INVALID || llJsonGetValue(signedBody, ["payload"]) == JSON_INVALID) { callbackResponse(requestID, 400, "missing callback fields"); return; }
+    if (sequence <= gSequence) { callbackResponse(requestID, 409, "callback replay or order violation"); return; }
+    string replayKey = "callback_event_" + eventID;
+    if (llLinksetDataRead(replayKey) != "") { callbackResponse(requestID, 409, "callback replay"); return; }
+    // Persist the replay marker and sequence before mutating display or acknowledging.
+    if (llLinksetDataWrite(replayKey, (string)sequence) != XP_ERROR_NONE || llLinksetDataWrite("callback_sequence", (string)sequence) != XP_ERROR_NONE) { callbackResponse(requestID, 503, "callback state unavailable"); return; }
+    string payload = llJsonGetValue(signedBody, ["payload"]);
+    string display = llJsonGetValue(payload, ["display"]);
+    if (display != JSON_INVALID && llJsonValueType(display, []) == JSON_OBJECT) {
+        string renter = llJsonGetValue(display, ["renter"]);
+        string endsAt = llJsonGetValue(display, ["endsAt"]);
+        if (renter == JSON_NULL) gRenter = "Available"; else if (renter != JSON_INVALID) gRenter = renter;
+        if (endsAt == JSON_NULL) gEndsAt = 0; else if (endsAt != JSON_INVALID) gEndsAt = (integer)endsAt;
+    }
+    gSequence = sequence;
+    gLastPollSuccess = llGetUnixTime();
+    updateDisplay();
+    callbackResponse(requestID, 200, "accepted");
+}
 default {
     state_entry() {
         if (TERMINAL_SECRET == "REPLACE_WITH_PAIRED_PER_OBJECT_SECRET") llOwnerSay("Terminal is not paired. Set the per-object secret.");
         if (TERMINAL_ID == "REPLACE_WITH_PAIRED_TERMINAL_UUID") llOwnerSay("Terminal ID is not configured.");
         gCallbackGeneration = (integer)llLinksetDataRead("callback_generation");
+        gSequence = (integer)llLinksetDataRead("callback_sequence");
         gUrlRequest = llRequestSecureURL();
         llSetTimerEvent(POLL_SECONDS);
         updateDisplay();
@@ -127,7 +162,9 @@ default {
         } else if (method == "URL_REQUEST_DENIED") {
             gCallbackURL = "";
             gRegisterRequest = NULL_KEY;
-        } else llHTTPResponse(requestID, 404, "Not found");
+        } else if (method == "POST") {
+            handleCallback(requestID, body);
+        } else callbackResponse(requestID, 405, "POST required");
     }
     http_response(key requestID, integer status, list metadata, string body) {
         if (requestID == gPollRequest) {

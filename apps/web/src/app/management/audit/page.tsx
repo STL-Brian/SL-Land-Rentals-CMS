@@ -2,7 +2,7 @@ import { query } from "@lake-tech/db";
 import { requireViewer } from "../../../lib/auth";
 import { AppShell } from "../../../components/app-shell";
 import { AuditTable } from "../../../components/audit-table";
-import { formatDateTime } from "../../../lib/date-time";
+import { LocalDateTime } from "../../../components/local-date-time";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +41,7 @@ export default async function Audit() {
   ]);
   const auditRows = audit.rows.map((entry) => ({ id: entry.id, action: entry.action, actor: entry.actor ?? "System", targetType: entry.target_type, targetId: entry.target_id, details: safeAuditDetails(entry.details), createdAt: entry.created_at.toISOString() }));
   return <AppShell viewer={viewer} eyebrow="Management / Security" title="Audit & system health">
-    <section className="panel worker-health"><div className="section-head"><div><h2>Worker health</h2><p>Current background service status.</p></div></div><div className="worker-list">{workers.rows.map((worker) => <article className="worker-row" key={worker.worker_id}><div><strong>{worker.worker_id}</strong><small>{formatDateTime(worker.heartbeat_at)} · {worker.mode}</small></div><span className={worker.adapter_connected ? "health-state healthy" : "health-state degraded"}>{worker.adapter_connected ? "Healthy" : "Degraded"}</span>{worker.last_error && <p>{worker.last_error}</p>}</article>)}</div></section>
+    <section className="panel worker-health"><div className="section-head"><div><h2>Worker health</h2><p>Current background service status.</p></div></div><div className="worker-list">{workers.rows.map((worker) => <article className="worker-row" key={worker.worker_id}><div><strong>{worker.worker_id}</strong><small><LocalDateTime value={worker.heartbeat_at}/> · {worker.mode}</small></div><span className={worker.adapter_connected ? "health-state healthy" : "health-state degraded"}>{worker.adapter_connected ? "Healthy" : "Degraded"}</span>{worker.last_error && <p>{worker.last_error}</p>}</article>)}</div></section>
     <section className="panel" aria-labelledby="security-audit-heading"><div className="section-head"><div><h2 id="security-audit-heading">Security audit</h2><p>Latest 200 security and operator events.</p></div></div><AuditTable rows={auditRows}/></section>
   </AppShell>;
 }

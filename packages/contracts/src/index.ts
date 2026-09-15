@@ -29,6 +29,8 @@ export const passwordSchema = z.string().min(12).max(1024);
 export const passwordLoginSchema = z.object({ username: challengeRequestSchema.shape.username, password: passwordSchema });
 export const passwordSetupSchema = z.object({ grant: z.string().min(40).max(200), password: passwordSchema, confirmation: z.string() })
   .refine(value => value.password === value.confirmation, { path: ["confirmation"], message: "Passwords must match" });
+export const passwordChangeSchema = z.object({ currentPassword: passwordSchema, password: passwordSchema, confirmation: z.string() })
+  .refine(value => value.password === value.confirmation, { path: ["confirmation"], message: "Passwords must match" });
 export const terminalPaymentSchema = z.object({
   amountLinden: z.number().int().positive().max(2_147_483_647),
   payerAvatarId: z.string().uuid(),

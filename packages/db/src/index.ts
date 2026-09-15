@@ -1,4 +1,5 @@
 import pg from "pg";
+export { enqueueTerminalCallback } from "./terminal-callbacks.js";
 const { Pool } = pg;
 let singleton: pg.Pool | undefined;
 export function pool(): pg.Pool { if (!singleton) singleton = new Pool({ connectionString: process.env.DATABASE_URL, max: 10, connectionTimeoutMillis: 2_000, query_timeout: 2_000 }); return singleton; }

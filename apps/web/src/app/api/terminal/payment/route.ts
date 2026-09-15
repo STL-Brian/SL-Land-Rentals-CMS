@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { terminalPaymentSchema } from "@lake-tech/contracts";
 import { assertFreshTimestamp, decideLindenPayment, openTerminalSecret, verifyTerminalSignature } from "@lake-tech/core";
-import { transaction } from "@lake-tech/db";
+import { enqueueTerminalCallback, transaction } from "@lake-tech/db";
 import { env } from "../../../../lib/env";
 import { cleanupExpiredPendingHolds } from "../../../../lib/checkout";
 import { assertEligibleRentalUser } from "../../../../lib/rental-eligibility";
@@ -29,8 +29,8 @@ export async function POST(req: Request) {
     const bodyHash = createHash("sha256").update(body).digest("hex");
 
     const result = await transaction(async (db) => {
-      const terminalResult = await db.query<{ id: string; secret_ciphertext: string; listing_id: string }>(
-        `SELECT id,secret_ciphertext,listing_id FROM terminals
+      const terminalResult = await db.query<{ id: string; secret_ciphertext: string; listing_id: string; callback_url: string | null; callback_generation: number | string }>(
+        `SELECT id,secret_ciphertext,listing_id,callback_url,callback_generation FROM terminals
          WHERE object_id=$1 AND owner_id=$2 AND shard=$3 AND enabled
          FOR UPDATE`,
         [objectId, ownerId, shard],
@@ -171,10 +171,52 @@ export async function POST(req: Request) {
          VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,
         [terminal.id, eventId, parsed.payerAvatarId, parsed.amountLinden, expected, status, paymentId, bodyHash],
       );
-      await db.query(
-        "INSERT INTO terminal_outbound_events(terminal_id,kind,payload) VALUES($1,'PAYMENT_RESULT',$2::jsonb)",
+      const outbound = await db.query<{ id: string }>(
+        `INSERT INTO terminal_outbound_events(terminal_id,kind,payload) VALUES($1,'PAYMENT_RESULT',$2::jsonb) RETURNING id`,
         [terminal.id, JSON.stringify({ eventId, status })],
       );
+      if (terminal.callback_url) {
+        const snapshot = await db.query<Record<string, unknown>>(
+          `SELECT e.payer_avatar_id,sli.user_id AS payer_user_id,sli.canonical_username AS payer_username,sli.display_name AS payer_display_name,
+                  extract(epoch from r.ends_at)::bigint::text AS ends_epoch,
+                  p.id AS payment_id,p.provider,p.provider_reference,p.amount_linden,p.expected_amount_linden,p.status AS payment_status,p.received_at,
+                  i.id AS invoice_id,i.status AS invoice_status,i.amount_linden AS invoice_amount_linden,
+                  r.id AS rental_id,r.status AS rental_status,r.starts_at,r.ends_at,
+                  l.id AS listing_id,l.slug AS listing_slug,l.name AS listing_name,l.kind AS listing_kind,l.description AS listing_description,
+                  l.area_sqm,l.prims,l.published,prop.name AS property_name,prop.region_name,
+                  pr.weekly_linden,pr.setup_linden
+           FROM terminal_payment_events e
+           LEFT JOIN payments p ON p.id=e.payment_id
+           LEFT JOIN invoices i ON i.id=p.invoice_id
+           LEFT JOIN rentals r ON r.id=i.rental_id
+           LEFT JOIN sl_identities sli ON sli.avatar_id=e.payer_avatar_id
+           JOIN listings l ON l.id=$2
+           JOIN properties prop ON prop.id=l.property_id
+           JOIN pricing pr ON pr.listing_id=l.id AND pr.active
+           WHERE e.terminal_id=$1 AND e.event_id=$3`,
+          [terminal.id, terminal.listing_id, eventId],
+        );
+        await enqueueTerminalCallback(db, {
+          terminalId: terminal.id,
+          eventId,
+          callbackUrl: terminal.callback_url,
+          callbackGeneration: Number(terminal.callback_generation),
+          secretCiphertext: terminal.secret_ciphertext,
+          kind: "PAYMENT_RESULT",
+          sequence: Number(outbound.rows[0]!.id),
+          payload: {
+            eventId,
+            status,
+            payerAvatarId: parsed.payerAvatarId,
+            amountLinden: parsed.amountLinden,
+            display: {
+              renter: snapshot.rows[0]?.payer_display_name ?? null,
+              endsAt: snapshot.rows[0]?.ends_epoch ?? null,
+            },
+            snapshot: snapshot.rows[0] ?? null,
+          },
+        });
+      }
       return { status, idempotent: false };
     });
 

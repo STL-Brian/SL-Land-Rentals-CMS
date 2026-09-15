@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { challengeRequestSchema, listingMutationSchema, listingPatchSchema, rentalAdminSchema, reservationCreateSchema, roleMutationSchema, roleSchema, terminalActionSchema, terminalPaymentSchema } from "./index.js";
+import { challengeRequestSchema, listingMutationSchema, listingPatchSchema, passwordChangeSchema, rentalAdminSchema, reservationCreateSchema, roleMutationSchema, roleSchema, terminalActionSchema, terminalPaymentSchema } from "./index.js";
 
 describe("contracts", () => {
   it("normalizes an SL username while preserving strict input", () => {
     expect(challengeRequestSchema.parse({ username: "Ava Resident" }).username).toBe("ava resident");
     expect(() => challengeRequestSchema.parse({ username: "x" })).toThrow();
+  });
+  it("requires the current password and matching replacement confirmation", () => {
+    const input = { currentPassword: "old password phrase", password: "new password phrase", confirmation: "new password phrase" };
+    expect(passwordChangeSchema.parse(input)).toEqual(input);
+    expect(() => passwordChangeSchema.parse({ ...input, confirmation: "different password" })).toThrow();
+    expect(() => passwordChangeSchema.parse({ ...input, currentPassword: "too-short" })).toThrow();
   });
   it("requires positive integer L$ amounts and UUID payer IDs", () => {
     const event = { amountLinden: 1000, payerAvatarId: "11111111-1111-4111-8111-111111111111" };
