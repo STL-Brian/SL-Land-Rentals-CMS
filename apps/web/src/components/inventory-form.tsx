@@ -1,0 +1,96 @@
+"use client";
+
+import { type FormEvent, useState } from "react";
+import { Field, FormActions, FormGrid, Modal } from "./form-primitives";
+
+type ListingRow = {
+  id: string;
+  name: string;
+  kind?: string;
+  published: boolean;
+  weeklyLinden: number;
+  setupLinden: number;
+  stripeWeeklyMinor: number;
+  stripeSetupMinor: number;
+  stripeCurrency?: string;
+};
+
+export function ListingsManager({ listings }: { listings: ListingRow[] }) {
+  const [creating, setCreating] = useState(false);
+  return <>
+    <section className="panel listing-panel">
+      <div className="section-head">
+        <div><h2>Rental inventory</h2><p>Review customer-facing prices and publishing state at a glance.</p></div>
+        <button className="button" type="button" onClick={() => setCreating(true)}>New property listing</button>
+      </div>
+      <div className="listing-grid">
+        {listings.map((listing) => <article className="listing-admin-card" key={listing.id}>
+          <div className="listing-card-head">
+            <div><span className="listing-kind">{listing.kind?.replace("_", " ")}</span><h3>{listing.name}</h3></div>
+            <span className={`publication-state ${listing.published ? "published" : "draft"}`}>{listing.published ? "Published" : "Draft"}</span>
+          </div>
+          <dl className="price-summary">
+            <div><dt>Weekly</dt><dd>L${listing.weeklyLinden.toLocaleString()} <small>· {(listing.stripeWeeklyMinor/100).toLocaleString("en-US",{style:"currency",currency:listing.stripeCurrency ?? "USD"})}</small></dd></div>
+            <div><dt>Setup</dt><dd>L${listing.setupLinden.toLocaleString()} <small>· {(listing.stripeSetupMinor/100).toLocaleString("en-US",{style:"currency",currency:listing.stripeCurrency ?? "USD"})}</small></dd></div>
+          </dl>
+          <ListingPricingForm listing={listing}/>
+        </article>)}
+        {!listings.length && <div className="empty-state"><h3>No listings yet</h3><p>Create the first Lake Tech Estates rental listing.</p></div>}
+      </div>
+    </section>
+    <Modal open={creating} onClose={() => setCreating(false)} title="New property listing" description="Create inventory and set its initial customer pricing.">
+      <InventoryForm onCancel={() => setCreating(false)}/>
+    </Modal>
+  </>;
+}
+
+export function InventoryForm({ onCancel }: { onCancel?: () => void }) {
+  const [message,setMessage]=useState("");
+  const [saving,setSaving]=useState(false);
+  async function submit(e:FormEvent<HTMLFormElement>){
+    e.preventDefault();setSaving(true);setMessage("");
+    const form=new FormData(e.currentTarget);
+    const payload={name:form.get("name"),slug:form.get("slug"),kind:form.get("kind"),regionName:form.get("regionName"),description:form.get("description"),areaSqm:Number(form.get("areaSqm")),prims:Number(form.get("prims")),weeklyLinden:Number(form.get("weeklyLinden")),setupLinden:Number(form.get("setupLinden")),stripeWeekly:String(form.get("stripeWeekly")),stripeSetup:String(form.get("stripeSetup")),published:form.get("published")==="on"};
+    try {const r=await fetch("/api/admin/listings",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok){setMessage(d.error??"Listing could not be created.");return}setMessage("Listing created.");location.reload()} catch {setMessage("Network error. Try again.")} finally {setSaving(false)}
+  }
+  return <form className="modern-form" onSubmit={submit}>
+    <FormGrid>
+      <Field label="Listing name" help="The customer-facing rental name."><input name="name" autoFocus required maxLength={128}/></Field>
+      <Field label="URL slug" help="Lowercase letters, numbers, and hyphens."><input name="slug" pattern="[a-z0-9-]+" required/></Field>
+      <Field label="Rental type"><select name="kind"><option value="PARCEL">Parcel</option><option value="FULL_REGION">Full region</option></select></Field>
+      <Field label="Second Life region"><input name="regionName" required/></Field>
+      <Field label="Area (m²)"><input name="areaSqm" type="number" min="1" inputMode="numeric" required/></Field>
+      <Field label="Land impact allowance"><input name="prims" type="number" min="0" inputMode="numeric" required/></Field>
+      <Field label="Weekly L$"><input name="weeklyLinden" type="number" min="1" inputMode="numeric" required/></Field>
+      <Field label="Setup L$"><input name="setupLinden" type="number" min="0" inputMode="numeric" defaultValue="0" required/></Field>
+      <Field label="Weekly USD" help="Enter dollars and cents, for example 12.34."><input name="stripeWeekly" type="text" inputMode="decimal" pattern="[0-9]+\.[0-9]{2}" placeholder="12.34" required/></Field>
+      <Field label="Setup USD"><input name="stripeSetup" type="text" inputMode="decimal" pattern="[0-9]+\.[0-9]{2}" defaultValue="0.00" required/></Field>
+      <Field label="Description" className="form-span"><textarea name="description" rows={4} minLength={20} required/></Field>
+    </FormGrid>
+    <label className="check-field"><input name="published" type="checkbox"/> Publish immediately</label>
+    {message && <p className="form-message" role="alert">{message}</p>}
+    <FormActions><button className="button secondary" type="button" onClick={onCancel}>Cancel</button><button className="button" type="submit" disabled={saving}>{saving?"Creating…":"Create listing"}</button></FormActions>
+  </form>;
+}
+
+export function ListingPricingForm({listing}:{listing:ListingRow}) {
+  const [open,setOpen]=useState(false);const[msg,setMsg]=useState("");const[saving,setSaving]=useState(false);const[reason,setReason]=useState("");
+  async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setSaving(true);setMsg("");const f=new FormData(e.currentTarget);const payload={weeklyLinden:Number(f.get("weeklyLinden")),setupLinden:Number(f.get("setupLinden")),stripeWeekly:String(f.get("stripeWeekly")),stripeSetup:String(f.get("stripeSetup"))};try{const r=await fetch(`/api/admin/listings/${listing.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok){setMsg(d.error??"Pricing update failed.");return}location.reload()}catch{setMsg("Network error. Try again.")}finally{setSaving(false)}}
+  async function publish(){if(listing.published&&!reason.trim()){setMsg("A reason is required before unpublishing.");return}setSaving(true);setMsg("");try{const response=await fetch(`/api/admin/listings/${listing.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({published:!listing.published,reason:listing.published?reason:undefined})});const body=await response.json();if(!response.ok){setMsg(body.error??"Listing update failed.");return}location.reload()}catch{setMsg("Network error. Try again.")}finally{setSaving(false)}}
+  return <>
+    <button className="button secondary card-action" type="button" onClick={()=>setOpen(true)} aria-label={`Edit ${listing.name}`}>Edit</button>
+    <Modal open={open} onClose={()=>setOpen(false)} title={`Edit ${listing.name}`} description="Update weekly and setup prices, or change publishing state.">
+      <form className="modern-form" onSubmit={submit} aria-label={`Edit ${listing.name} pricing`}>
+        <FormGrid>
+          <Field label="Weekly L$"><input name="weeklyLinden" type="number" min="1" inputMode="numeric" defaultValue={listing.weeklyLinden} required/></Field>
+          <Field label="Setup L$"><input name="setupLinden" type="number" min="0" inputMode="numeric" defaultValue={listing.setupLinden} required/></Field>
+          <Field label="Weekly USD"><input name="stripeWeekly" type="text" inputMode="decimal" pattern="[0-9]+\.[0-9]{2}" defaultValue={(listing.stripeWeeklyMinor/100).toFixed(2)} required/></Field>
+          <Field label="Setup USD"><input name="stripeSetup" type="text" inputMode="decimal" pattern="[0-9]+\.[0-9]{2}" defaultValue={(listing.stripeSetupMinor/100).toFixed(2)} required/></Field>
+        </FormGrid>
+        {msg&&<p className="form-message" role="alert">{msg}</p>}
+        <FormActions><button className="button secondary" type="button" onClick={()=>setOpen(false)}>Cancel</button><button className="button" type="submit" disabled={saving}>{saving?"Saving…":"Save pricing"}</button></FormActions>
+      </form>
+      <section className="danger-zone" aria-labelledby={`publishing-${listing.id}`}><h3 id={`publishing-${listing.id}`}>Publishing</h3><p>{listing.published?"Unpublishing removes this rental from public browsing.":"Publishing makes this rental visible to customers."}</p>{listing.published&&<Field label="Reason for unpublishing"><textarea value={reason} onChange={e=>setReason(e.target.value)} rows={2} required/></Field>}<button className={listing.published?"button danger":"button secondary"} type="button" disabled={saving} onClick={()=>void publish()}>{listing.published?"Unpublish listing":"Publish listing"}</button></section>
+    </Modal>
+  </>;
+}

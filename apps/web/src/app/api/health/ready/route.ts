@@ -1,0 +1,1 @@
+import {NextResponse} from "next/server";import {ready} from "@lake-tech/db";export async function GET(){const ok=await ready();return NextResponse.json({status:ok?"ready":"not_ready",database:ok?"up":"down"},{status:ok?200:503,headers:{"Cache-Control":"no-store"}})}

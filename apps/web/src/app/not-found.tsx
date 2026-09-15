@@ -1,0 +1,1 @@
+export default function NotFound(){return <section className="panel form-shell"><div className="eyebrow">404</div><h1 className="section-title">That land moved.</h1><p>The property is no longer published or the address is incorrect.</p></section>}

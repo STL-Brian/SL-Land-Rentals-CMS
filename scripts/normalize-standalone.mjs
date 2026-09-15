@@ -1,0 +1,2 @@
+import {cp,copyFile} from "node:fs/promises";import {join} from "node:path";
+const root=new URL("../apps/web/.next/standalone/",import.meta.url);const nested=join(root.pathname,"apps/web");await copyFile(join(nested,"server.js"),join(root.pathname,"server.js"));await cp(join(nested,".next"),join(root.pathname,".next"),{recursive:true,dereference:true});await cp(new URL("../apps/web/.next/static/",import.meta.url),join(root.pathname,".next/static"),{recursive:true,force:true});console.log("standalone normalized: apps/web/.next/standalone/server.js");

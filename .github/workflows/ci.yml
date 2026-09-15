@@ -1,0 +1,37 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env: { POSTGRES_USER: lake_tech, POSTGRES_PASSWORD: lake_tech, POSTGRES_DB: lake_tech }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U lake_tech" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://lake_tech:lake_tech@localhost:5432/lake_tech
+      NODE_ENV: production
+      PUBLIC_SCHEME: http
+      PUBLIC_BASE_URL: http://localhost:3000
+      SESSION_COOKIE_SECURE: "false"
+      OTP_HMAC_SECRET: ci-only-secret-with-at-least-32-characters
+      TERMINAL_SECRET_ENCRYPTION_KEY: ci-terminal-encryption-key-at-least-32-characters
+      SESSION_HMAC_SECRET: ci-session-secret-with-at-least-32-characters
+      SIMULATION_MODE: "true"
+      ALLOW_SIMULATION_IN_PRODUCTION: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run db:migrate && npm run db:seed
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+      - run: docker compose config -q

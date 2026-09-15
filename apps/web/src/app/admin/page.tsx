@@ -1,0 +1,1 @@
+import { redirect } from "next/navigation";import { defaultAuthenticatedPath } from "@lake-tech/core";import { requireViewer } from "../../lib/auth";export default async function AdminCompatibility(){const viewer=await requireViewer();redirect(defaultAuthenticatedPath(viewer.role))}

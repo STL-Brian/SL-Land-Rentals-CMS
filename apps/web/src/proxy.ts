@@ -1,0 +1,3 @@
+import {NextResponse} from "next/server";
+export function proxy(){const nonce=crypto.randomUUID().replaceAll("-","");const response=NextResponse.next();response.headers.set("Content-Security-Policy",`default-src 'self'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`);response.headers.set("X-Content-Type-Options","nosniff");response.headers.set("Referrer-Policy","strict-origin-when-cross-origin");response.headers.set("Permissions-Policy","camera=(), microphone=(), geolocation=()");return response}
+export const config={matcher:["/((?!_next/static|_next/image|favicon.ico).*)"]};

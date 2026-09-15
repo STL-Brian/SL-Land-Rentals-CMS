@@ -1,0 +1,28 @@
+# Fail-closed blocker ledger — repair cycle 1
+
+| Finding | Code / configuration resolution | Regression / verification evidence |
+|---|---|---|
+| public simulation mailbox admin takeover | Deleted `apps/web/src/app/api/dev-mailbox/route.ts`; operator-only `scripts/read-simulation-mailbox.mjs`; `README.md`, `docs/security-operations.md` | `review-regressions.test.ts`; public `/api/dev-mailbox` smoke = 404; `smoke-login.mjs` reads DB via operator CLI |
+| public fixed terminal forgery | Seed no longer creates terminals; ADMIN provision generates `randomBytes(32)`, stores `sealTerminalSecret` ciphertext, returns plaintext once | `review-regressions.test.ts`; `security.test.ts`; dynamic terminal portion of `smoke-login.mjs` |
+| OTP split-lock race | `auth.ts` uses `login:${canonical}` for create and verify; create consumes every prior unused challenge atomically | `otp-postgres.integration.test.ts` (two real PG connections); `review-regressions.test.ts` |
+| late Stripe charge divergence | Paid-but-unpayable sessions create durable `MANUAL_REVIEW` payment with expected snapshot and trigger idempotent Stripe refund | `stripe-webhook/route.ts`; financial-event assertions in `review-regressions.test.ts` |
+| no stable Stripe attempt/idempotency | `stripe_checkout_attempts`; durable generation/idempotency key; authoritative retrieve/reuse; 30-minute provider expiry | `checkout/route.ts`; migration assertions in `review-regressions.test.ts` |
+| missing refunds/disputes/failures/expiration handling | Raw signed events recorded before handling with explicit processing status; checkout expiry/async success/failure/refunds/disputes handled or marked manual review | `stripe-webhook/route.ts`; event matrix assertion in `review-regressions.test.ts` |
+| ignored setup fee | `stripe_setup_minor`; first fiat invoice is weekly+setup; terminal initial pay price/decision is weekly+setup, extensions weekly only | `checkout.ts`, terminal poll/payment routes, listing API/UI; `checkout.test.ts`, `review-regressions.test.ts` |
+| LSL persistence failure sends anyway | Checks `llLinksetDataWrite != XP_ERROR_NONE`, alerts owner/payer, returns before HTTP; queue remains bounded at 32 | `lsl/rental-terminal.lsl`; `review-regressions.test.ts` |
+| no expected-price snapshot | Payments and terminal events store expected amount/currency; manual-review invoice stores expected rate | migrations; terminal payment and Stripe webhook routes; `review-regressions.test.ts` |
+| expired OTP infinite/hung bot delivery | Outbox binds challenge/expiry, max eight attempts/dead-letter; claim/send/finalize transactions separated; 10s adapter timeout; reconnect backoff and DB heartbeat | `apps/sl-bot/src/index.ts`, `adapters.ts`, `bot_health`; `review-regressions.test.ts`, adapter tests, Compose health |
+| EXTEND non-active rentals | ADMIN route locks rental and returns 409 unless status is ACTIVE; UPDATE also predicates ACTIVE | admin rental route; `review-regressions.test.ts` |
+| broken CI seed env | CI has valid DB URL, terminal encryption key and session key; PostgreSQL service; migration before tests | `.github/workflows/ci.yml`; Compose/CI config sanity |
+| Compose password mismatch | Local simulation uses one fixed `lake_tech_local_dev` raw password and matching encoded URL; production separate raw/encoded policy documented | `docker-compose.yml`, `.env.example`, deployment/security operations docs; `docker compose config -q` |
+| no terminal lifecycle workflow | ADMIN list/provision/rebind/revoke/rotate APIs and Control Room UI; role/origin checks and audit entries | terminal admin routes, `admin-ops.tsx`, admin page; dynamic pairing smoke |
+| no reconciliation workflow | ADMIN list/approve/reject/note API/UI; row locking, audit, no deletes, safe invoice/rental transitions | reconciliation routes/UI; dynamic manual-review + reject smoke; `review-regressions.test.ts` |
+| unbounded nonce/event tables | Indexed 7-day nonce and 30-day outbound-event cleanup during authenticated terminal calls; policy documented | migrations, terminal poll/payment routes, `docs/security-operations.md` |
+| weak LSL permission docs | Documents no-mod/object ownership limits, imperfect secret protection, dedicated low-balance owner and disclosure rotation | `docs/security-operations.md` |
+| insufficient PG concurrency tests | Real two-client advisory-lock/invalidation integration test; CI runs against PostgreSQL after migrations | `otp-postgres.integration.test.ts`, CI workflow; container-network test passed |
+| no meaningful bot health | Worker writes process/DB/adapter-connected heartbeat; real adapter state included; Compose query health replaces process-name check | bot index/adapters, migration, Compose healthcheck; healthy Compose and DB pause/recovery checks |
+| provider constraints / one pricing / checkout owner / proxy hardening | Provider/amount shape DB check; unique active pricing index; success query requires authenticated invoice owner; proxy headers ignored by default and trusted-ingress policy documented | migrations, success page, Compose, HTTP tests and `review-regressions.test.ts` |
+
+## Provider boundary
+
+The authorized Vaultwarden item was injected only into `scripts/smoke-sl-bot-login.mjs`; real Second Life login and simulator connection passed under a 70-second helper timeout while the simulation deployment remained running. Live Stripe and LSL compilation were not run because the necessary provider webhook environment/compiler is not available. Simulation exercises the durable accounting, signing, terminal lifecycle and reconciliation paths; live Stripe/LSL behavior remains an external acceptance gate.
