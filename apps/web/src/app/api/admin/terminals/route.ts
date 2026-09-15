@@ -26,12 +26,18 @@ export async function POST(req: Request) {
   catch { return NextResponse.json({ error: "Invalid terminal binding" }, { status: 400 }); }
   const secret = randomBytes(32).toString("base64url");
   const ciphertext = sealTerminalSecret(secret, cfg.terminalEncryptionKey);
-  const terminal = await transaction(async (db) => {
-    const inserted = await db.query<{id:string}>(`INSERT INTO terminals(listing_id,object_id,owner_id,shard,secret_ciphertext) VALUES($1,$2,$3,$4,$5) RETURNING id`, [binding.listingId, binding.objectId, binding.ownerId, binding.shard, ciphertext]);
-    const id = inserted.rows[0]!.id;
-    await db.query(`INSERT INTO audit_log(actor_user_id,action,target_type,target_id,details) VALUES($1,'TERMINAL_PROVISION','TERMINAL',$2,$3::jsonb)`, [viewer.id, id, JSON.stringify(binding)]);
-    return id;
-  });
+  let terminal;
+  try {
+    terminal = await transaction(async (db) => {
+      const inserted = await db.query<{id:string}>(`INSERT INTO terminals(listing_id,object_id,owner_id,shard,secret_ciphertext) VALUES($1,$2,$3,$4,$5) RETURNING id`, [binding.listingId, binding.objectId, binding.ownerId, binding.shard, ciphertext]);
+      const id = inserted.rows[0]!.id;
+      await db.query(`INSERT INTO audit_log(actor_user_id,action,target_type,target_id,details) VALUES($1,'TERMINAL_PROVISION','TERMINAL',$2,$3::jsonb)`, [viewer.id, id, JSON.stringify(binding)]);
+      return id;
+    });
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "23505") return NextResponse.json({ error: "That object is already paired. Use Manage on the existing terminal or choose a different object." }, { status: 409, headers: noStoreHeaders });
+    return NextResponse.json({ error: "Terminal pairing failed." }, { status: 500, headers: noStoreHeaders });
+  }
   // The plaintext exists only in this one no-store response. It is never logged or persisted.
   return NextResponse.json({ id: terminal, secret }, { status: 201, headers: noStoreHeaders });
 }
