@@ -7,9 +7,33 @@ import {
   createHmac,
   randomBytes,
   randomInt,
+  scrypt,
   timingSafeEqual,
 } from "node:crypto";
 
+const scryptAsync = (password: string, salt: Buffer, keylen: number): Promise<Buffer> =>
+  new Promise((resolve, reject) => scrypt(password, salt, keylen, { N: 32_768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }, (error, derivedKey) => error ? reject(error) : resolve(derivedKey)));
+const PASSWORD_HASH_PREFIX = "scrypt$v=1$N=32768,r=8,p=1";
+
+export async function hashPassword(password: string): Promise<string> {
+  if (password.length < 12 || password.length > 1024) throw new Error("invalid password length");
+  const salt = randomBytes(16);
+    const digest = await scryptAsync(password, salt, 32);
+  return `${PASSWORD_HASH_PREFIX}$${salt.toString("base64url")}$${digest.toString("base64url")}`;
+}
+
+export async function verifyPassword(password: string, encoded: string): Promise<boolean> {
+  if (password.length > 1024) return false;
+  const match = /^(scrypt[$]v=1[$]N=32768,r=8,p=1)[$]([A-Za-z0-9_-]{22})[$]([A-Za-z0-9_-]{43})$/.exec(encoded);
+  if (!match) return false;
+  try {
+    const expected = Buffer.from(match[3]!, "base64url");
+    const actual = await scryptAsync(password, Buffer.from(match[2]!, "base64url"), 32);
+    return expected.length === actual.length && timingSafeEqual(expected, actual);
+  } catch {
+    return false;
+  }
+}
 export function createOtp(): string {
   return randomInt(0, 100_000_000).toString().padStart(8, "0");
 }

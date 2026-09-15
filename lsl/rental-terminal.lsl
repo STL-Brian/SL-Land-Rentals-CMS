@@ -2,6 +2,7 @@
 // Pairing writes the assigned terminal UUID and secret into these placeholders.
 string API_BASE = "https://hermes-dev-2.tallofam.com";
 string TERMINAL_SECRET = "REPLACE_WITH_PAIRED_PER_OBJECT_SECRET";
+string TERMINAL_ID = "REPLACE_WITH_PAIRED_TERMINAL_UUID";
 string SHARD = "Second Life";
 integer POLL_SECONDS = 30;
 integer MAX_QUEUED_PAYMENTS = 32;
@@ -11,6 +12,10 @@ string gRenter = "Available";
 integer gEndsAt = 0;
 integer gLastPollSuccess = 0;
 key gPollRequest;
+key gRegisterRequest;
+key gUrlRequest;
+string gCallbackURL = "";
+integer gCallbackGeneration = 0;
 list gRequestIds;
 list gQueueKeys;
 
@@ -50,6 +55,12 @@ sendPoll() {
     string eventID = "poll-" + (string)llGenerateKey();
     gPollRequest = llHTTPRequest(API_BASE + "/api/terminal/poll?sequence=" + (string)gSequence, signedHeaders(eventID, ""), "");
 }
+registerCallback() {
+    if (gCallbackURL == "" || gRegisterRequest != NULL_KEY) return;
+    string body = llList2Json(JSON_OBJECT, ["terminalId", TERMINAL_ID, "callbackUrl", gCallbackURL, "generation", gCallbackGeneration]);
+    string eventID = "register-" + (string)llGenerateKey();
+    gRegisterRequest = llHTTPRequest(API_BASE + "/api/terminal/register", signedHeaders(eventID, body), body);
+}
 sendPayment(string queueKey, string eventID, string body) {
     if (llListFindList(gQueueKeys, [queueKey]) != -1) return;
     key request = llHTTPRequest(API_BASE + "/api/terminal/payment", signedHeaders(eventID, body), body);
@@ -68,6 +79,9 @@ retryQueue() {
 default {
     state_entry() {
         if (TERMINAL_SECRET == "REPLACE_WITH_PAIRED_PER_OBJECT_SECRET") llOwnerSay("Terminal is not paired. Set the per-object secret.");
+        if (TERMINAL_ID == "REPLACE_WITH_PAIRED_TERMINAL_UUID") llOwnerSay("Terminal ID is not configured.");
+        gCallbackGeneration = (integer)llLinksetDataRead("callback_generation");
+        gUrlRequest = llRequestSecureURL();
         llSetTimerEvent(POLL_SECONDS);
         updateDisplay();
         sendPoll();
@@ -81,6 +95,7 @@ default {
             updateDisplay();
         }
         sendPoll();
+        registerCallback();
         retryQueue();
     }
     money(key payer, integer amount) {
@@ -102,6 +117,18 @@ default {
         sendPayment(queueKey, eventID, body);
         llInstantMessage(payer, "Lake Tech Estates received your L$ event. Confirmation follows server verification.");
     }
+    http_request(key requestID, string method, string body) {
+        if (method == "URL_REQUEST_GRANTED") {
+            gCallbackURL = body;
+            gCallbackGeneration += 1;
+            llLinksetDataWrite("callback_generation", (string)gCallbackGeneration);
+            gRegisterRequest = NULL_KEY;
+            registerCallback();
+        } else if (method == "URL_REQUEST_DENIED") {
+            gCallbackURL = "";
+            gRegisterRequest = NULL_KEY;
+        } else llHTTPResponse(requestID, 404, "Not found");
+    }
     http_response(key requestID, integer status, list metadata, string body) {
         if (requestID == gPollRequest) {
             gPollRequest = NULL_KEY;
@@ -117,6 +144,10 @@ default {
                 gPayPrice = (integer)llJsonGetValue(body, ["payPrice"]);
                 updateDisplay();
             }
+            return;
+        }
+        if (requestID == gRegisterRequest) {
+            gRegisterRequest = NULL_KEY;
             return;
         }
         integer at = llListFindList(gRequestIds, [requestID]);

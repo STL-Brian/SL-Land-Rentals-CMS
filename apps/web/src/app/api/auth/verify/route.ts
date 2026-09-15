@@ -13,6 +13,7 @@ export async function POST(req: Request) {
     if (!token) {
       return NextResponse.json({ message: "That code is invalid or expired." }, { status: 401, headers: noStoreHeaders });
     }
+    if (token.startsWith("SETUP:")) return NextResponse.json({ setup: true, grant: token.slice(6) }, { headers: noStoreHeaders });
     const response = NextResponse.json({ redirect: "/admin" }, { headers: noStoreHeaders });
     response.cookies.set("lte_session", token, sessionCookieOptions(cfg.cookieSecure));
     return response;

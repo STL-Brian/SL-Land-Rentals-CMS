@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import pg from "pg";
 import { openMessage, verifyOtp } from "@lake-tech/core";
-import { requestChallenge, verifyChallenge } from "./auth.js";
+import { completePasswordSetup, requestChallenge, verifyChallenge } from "./auth.js";
 
 const url = process.env.DATABASE_URL;
 const run = url ? it : it.skip;
@@ -64,7 +64,9 @@ describe("first Second Life login", () => {
       expect(otp).toMatch(/^\d{8}$/);
       expect(verifyOtp(otp!, challenge.rows[0]!.otp_digest, process.env.OTP_HMAC_SECRET!, row.id)).toBe(true);
 
-      const session = await verifyChallenge(canonical, otp!, ip);
+      const setup = await verifyChallenge(canonical, otp!, ip);
+      expect(setup).toMatch(/^SETUP:/);
+      const session = await completePasswordSetup(setup!.slice(6), "correct horse battery staple", ip);
       expect(session).not.toBeNull();
       const provisioned = await db.query("SELECT u.role,i.avatar_id FROM users u JOIN sl_identities i ON i.user_id=u.id WHERE i.canonical_username=$1", [canonical]);
       expect(provisioned.rows).toEqual([{ role: "RESIDENT", avatar_id: avatarId }]);

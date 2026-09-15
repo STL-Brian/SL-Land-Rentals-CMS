@@ -5,6 +5,8 @@ import {
   createSessionToken,
   digestOtp,
   hashSessionToken,
+  hashPassword,
+  verifyPassword,
   openMessage,
   openTerminalSecret,
   parseMoneyDecimal,
@@ -28,6 +30,16 @@ describe("OTP and sessions", () => {
     const token = createSessionToken();
     expect(token.length).toBeGreaterThan(30);
     expect(hashSessionToken(token)).not.toBe(token);
+  });
+
+  it("hashes passwords with unique salts and verifies them", async () => {
+    const first = await hashPassword("correct horse battery staple");
+    const second = await hashPassword("correct horse battery staple");
+    expect(first).not.toBe(second);
+    expect(first).toMatch(/^scrypt\$v=1\$/);
+    expect(await verifyPassword("correct horse battery staple", first)).toBe(true);
+    expect(await verifyPassword("wrong password", first)).toBe(false);
+    expect(await verifyPassword("correct horse battery staple", "malformed")).toBe(false);
   });
 
   it("encrypts transient outbox messages at rest", () => {
