@@ -123,7 +123,7 @@ default {
         retryQueue();
     }
     on_rez(integer start) { llResetScript(); }
-    changed(integer change) { if (change & CHANGED_OWNER) llResetScript(); }
+    changed(integer change) { if (change & (CHANGED_OWNER | CHANGED_REGION | CHANGED_REGION_START)) llResetScript(); }
     timer() {
         if (gLastPollSuccess == 0 || llGetUnixTime() - gLastPollSuccess > POLL_SECONDS * 2) {
             gPayPrice = 0;
