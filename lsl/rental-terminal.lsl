@@ -2,7 +2,7 @@
 // Pairing writes the assigned terminal UUID and secret into these placeholders.
 string API_BASE = "https://hermes-dev-2.tallofam.com";
 string TERMINAL_SECRET = "REPLACE_WITH_PAIRED_PER_OBJECT_SECRET";
-string TERMINAL_ID = "REPLACE_WITH_PAIRED_TERMINAL_UUID";
+
 string SHARD = "Second Life";
 integer POLL_SECONDS = 30;
 integer MAX_QUEUED_PAYMENTS = 32;
@@ -57,7 +57,7 @@ sendPoll() {
 }
 registerCallback() {
     if (gCallbackURL == "" || gRegisterRequest != NULL_KEY) return;
-    string body = llList2Json(JSON_OBJECT, ["terminalId", TERMINAL_ID, "callbackUrl", gCallbackURL, "generation", gCallbackGeneration]);
+    string body = llList2Json(JSON_OBJECT, ["callbackUrl", gCallbackURL, "generation", gCallbackGeneration]);
     string eventID = "register-" + (string)llGenerateKey();
     gRegisterRequest = llHTTPRequest(API_BASE + "/api/terminal/register", signedHeaders(eventID, body), body);
 }
@@ -113,7 +113,7 @@ handleCallback(key requestID, string body) {
 default {
     state_entry() {
         if (TERMINAL_SECRET == "REPLACE_WITH_PAIRED_PER_OBJECT_SECRET") llOwnerSay("Terminal is not paired. Set the per-object secret.");
-        if (TERMINAL_ID == "REPLACE_WITH_PAIRED_TERMINAL_UUID") llOwnerSay("Terminal ID is not configured.");
+
         gCallbackGeneration = (integer)llLinksetDataRead("callback_generation");
         gSequence = (integer)llLinksetDataRead("callback_sequence");
         gUrlRequest = llRequestSecureURL();
