@@ -8,15 +8,20 @@ const enabled = Boolean(process.env.DATABASE_URL);
 const run = enabled ? it : it.skip;
 const ids = {
   admin: crypto.randomUUID(), secondAdmin: crypto.randomUUID(), manager: crypto.randomUUID(),
-  agent: crypto.randomUUID(), resident: crypto.randomUUID(), listing: crypto.randomUUID(), property: crypto.randomUUID(),
+  agent: crypto.randomUUID(), resident: crypto.randomUUID(), unverified: crypto.randomUUID(), listing: crypto.randomUUID(), property: crypto.randomUUID(),
 };
 
 beforeAll(async () => {
   if (!enabled) return;
   await query(`INSERT INTO users(id,role,display_name) VALUES
     ($1,'ADMINISTRATOR','RBAC admin'),($2,'ADMINISTRATOR','RBAC second admin'),
-    ($3,'MANAGER','RBAC manager'),($4,'AGENT','RBAC agent'),($5,'RESIDENT','RBAC resident')`,
-    [ids.admin, ids.secondAdmin, ids.manager, ids.agent, ids.resident]);
+    ($3,'MANAGER','RBAC manager'),($4,'AGENT','RBAC agent'),($5,'RESIDENT','RBAC resident'),($6,'RESIDENT','RBAC unverified')`,
+    [ids.admin, ids.secondAdmin, ids.manager, ids.agent, ids.resident, ids.unverified]);
+  await query(`INSERT INTO sl_identities(avatar_id,user_id,canonical_username,display_name) VALUES
+    ($1,$1,$6,$6),($2,$2,$7,$7),($3,$3,$8,$8),($4,$4,$9,$9),($5,$5,$10,$10)`,
+    [ids.admin, ids.secondAdmin, ids.manager, ids.agent, ids.resident,
+      `rbac-admin-${ids.admin}`, `rbac-admin-${ids.secondAdmin}`, `rbac-manager-${ids.manager}`,
+      `rbac-agent-${ids.agent}`, `rbac-resident-${ids.resident}`]);
   await query("INSERT INTO properties(id,name,region_name) VALUES($1,'RBAC property','RBAC region')", [ids.property]);
   await query(`INSERT INTO listings(id,property_id,slug,name,kind,description,area_sqm,prims,published)
     VALUES($1,$2,$3,'RBAC listing','PARCEL','Integration test listing for reservations',1024,250,true)`,
@@ -31,7 +36,7 @@ afterAll(async () => {
   await query("DELETE FROM pricing WHERE listing_id=$1", [ids.listing]);
   await query("DELETE FROM listings WHERE id=$1", [ids.listing]);
   await query("DELETE FROM properties WHERE id=$1", [ids.property]);
-  await query("DELETE FROM users WHERE id = ANY($1::uuid[])", [[ids.admin, ids.secondAdmin, ids.manager, ids.agent, ids.resident]]);
+  await query("DELETE FROM users WHERE id = ANY($1::uuid[])", [[ids.admin, ids.secondAdmin, ids.manager, ids.agent, ids.resident, ids.unverified]]);
   await pool().end();
 });
 
@@ -95,15 +100,14 @@ describe("PostgreSQL staff reservations", () => {
     await query("DELETE FROM rentals WHERE id=$1",[hold.rows[0]!.id]);
   });
 
-  run("prevents an agent from targeting staff through the authoritative service", async () => {
+  run("enforces verified rental-account targets and actor-specific administrator access", async () => {
     const base = { listingId: ids.listing, expiresAt: new Date(Date.now()+60*60_000), notes: "Direct service bypass" };
-    for (const targetUserId of [ids.admin, ids.manager, ids.agent]) {
-      await expect(createReservation(ids.agent, {
-        ...base,
-        targetUserId,
-        idempotencyKey: `staff-target-${targetUserId}`,
-      })).rejects.toThrow("TARGET_ROLE_FORBIDDEN");
+    await expect(createReservation(ids.agent, { ...base, targetUserId: ids.admin, idempotencyKey: "agent-admin-target" })).rejects.toThrow("TARGET_ROLE_FORBIDDEN");
+    for (const targetUserId of [ids.manager, ids.agent, ids.unverified]) {
+      await expect(createReservation(ids.manager, { ...base, targetUserId, idempotencyKey: `ineligible-${targetUserId}` })).rejects.toThrow("NOT_FOUND");
     }
+    const allowed = await createReservation(ids.manager, { ...base, targetUserId: ids.admin, idempotencyKey: "manager-admin-target" });
+    await cancelReservation(ids.manager, allowed.id, "Eligibility test cleanup");
   });
 
   run("serializes concurrent reservations and prevents agents cancelling another creator's reservation", async()=>{

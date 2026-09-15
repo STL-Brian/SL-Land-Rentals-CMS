@@ -46,6 +46,7 @@ updateDisplay() {
     else llSetPayPrice(PAY_HIDE, [PAY_HIDE, PAY_HIDE, PAY_HIDE, PAY_HIDE]);
 }
 sendPoll() {
+    if (gPollRequest != NULL_KEY) return;
     string eventID = "poll-" + (string)llGenerateKey();
     gPollRequest = llHTTPRequest(API_BASE + "/api/terminal/poll?sequence=" + (string)gSequence, signedHeaders(eventID, ""), "");
 }
@@ -103,6 +104,7 @@ default {
     }
     http_response(key requestID, integer status, list metadata, string body) {
         if (requestID == gPollRequest) {
+            gPollRequest = NULL_KEY;
             if (status == 200) {
                 gLastPollSuccess = llGetUnixTime();
                 gSequence = (integer)llJsonGetValue(body, ["sequence"]);

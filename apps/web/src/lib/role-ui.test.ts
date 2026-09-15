@@ -43,6 +43,8 @@ describe("role-based multi-page application", () => {
     expect(page).toContain("ReservationForm");
     expect(search).toContain('authorizeApi("reservation:manage")');
     expect(search).toContain("length<3");
+    expect(search).toContain("JOIN sl_identities");
+    expect(search).toContain("'RESIDENT','RENTER','ADMINISTRATOR'");
     expect(search).toContain("LIMIT 10");
   });
 

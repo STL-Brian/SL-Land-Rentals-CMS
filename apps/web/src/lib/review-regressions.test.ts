@@ -24,6 +24,11 @@ describe("fail-closed review regressions", () => {
     expect(read("lsl/rental-terminal.lsl")).toMatch(/llLinksetDataWrite[\s\S]*XP_ERROR_NONE[\s\S]*sendPayment/);
     expect(read("apps/web/src/app/api/terminal/poll/route.ts")).toContain("setup_linden");
   });
+  it("keeps one terminal poll in flight so delayed responses remain identifiable", () => {
+    const source = read("lsl/rental-terminal.lsl");
+    expect(source).toMatch(/sendPoll\(\)\s*\{\s*if \(gPollRequest != NULL_KEY\) return;/);
+    expect(source).toMatch(/if \(requestID == gPollRequest\)\s*\{\s*gPollRequest = NULL_KEY;/);
+  });
   it("restricts admin extension and secures checkout success", () => {
     expect(read("apps/web/src/app/api/admin/rentals/[id]/route.ts")).toMatch(/status.?=.?'ACTIVE'|status='ACTIVE'/);
     expect(read("apps/web/src/app/checkout/success/page.tsx")).toContain("viewer.id");

@@ -74,11 +74,15 @@ export async function createReservation(actorUserId: string, input: ReservationI
       "UPDATE reservations SET status='EXPIRED' WHERE listing_id=$1 AND status='ACTIVE' AND expires_at<=now()",
       [input.listingId],
     );
-    const target = await db.query<{ role: UserRole; active: boolean }>(
-      "SELECT role,active FROM users WHERE id=$1 FOR UPDATE",
+    const target = await db.query<{ role: UserRole; active: boolean; verified: boolean }>(
+      `SELECT u.role,u.active,(s.avatar_id IS NOT NULL) verified
+       FROM users u LEFT JOIN sl_identities s ON s.user_id=u.id
+       WHERE u.id=$1 FOR UPDATE OF u`,
       [input.targetUserId],
     );
-    if (!target.rows[0]?.active) throw new Error("NOT_FOUND");
+    if (!target.rows[0]?.active || !target.rows[0].verified || !["RESIDENT", "RENTER", "ADMINISTRATOR"].includes(target.rows[0].role)) {
+      throw new Error("NOT_FOUND");
+    }
     if (actor.rows[0].role === "AGENT" && !["RESIDENT", "RENTER"].includes(target.rows[0].role)) {
       throw new Error("TARGET_ROLE_FORBIDDEN");
     }

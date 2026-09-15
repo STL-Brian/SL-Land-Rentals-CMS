@@ -4,6 +4,7 @@ import { requireViewer } from "../../../lib/auth";
 import { AppShell } from "../../../components/app-shell";
 import { ReconciliationActions } from "../../../components/admin-ops";
 import { ProviderRecoveryAction } from "../../../components/provider-recovery-action";
+import { formatDateTime } from "../../../lib/date-time";
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +78,7 @@ export default async function Payments() {
           {payments.rows.map((payment) => <tr key={payment.id}>
             <td>{payment.listing_name}</td><td>{payment.display_name}</td><td>{payment.provider}</td>
             <td>{payment.amount_linden !== null ? `L$${payment.amount_linden.toLocaleString()}` : `${formatMoneyMinor(payment.amount_minor!)} ${(payment.currency ?? "").toUpperCase()}`}</td>
-            <td><span className="status">{payment.status}</span></td><td>{payment.received_at.toLocaleString()}</td>
+            <td><span className="status">{payment.status}</span></td><td>{formatDateTime(payment.received_at)}</td>
             <td>{payment.status !== "MANUAL_REVIEW" ? "—" : payment.provider === "LINDEN" ? <ReconciliationActions id={payment.id} /> : administrator ? <ReconciliationActions id={`stripe-payment:${payment.id}`} kind="STRIPE_PAYMENT" /> : "Administrator required"}</td>
           </tr>)}
         </tbody></table></div>
@@ -87,21 +88,21 @@ export default async function Payments() {
         <h2 id="unlinked-terminal-heading">Unlinked terminal payments</h2>
         <p>Payments whose Second Life payer has not been linked to an account.</p>
         <div className="table-scroll"><table className="table"><thead><tr><th>Rental</th><th>Payer avatar</th><th>Amount</th><th>Received</th><th>Action</th></tr></thead><tbody>
-          {terminalReviews.rows.map((item) => <tr key={`${item.terminal_id}:${item.event_id}`}><td>{item.listing_name}</td><td>{item.payer_avatar_id}</td><td>L${item.amount_linden.toLocaleString()}</td><td>{item.created_at.toLocaleString()}</td><td>{administrator ? <ReconciliationActions id={`${item.terminal_id}:${item.event_id}`} unlinked /> : "Administrator required"}</td></tr>)}
+          {terminalReviews.rows.map((item) => <tr key={`${item.terminal_id}:${item.event_id}`}><td>{item.listing_name}</td><td>{item.payer_avatar_id}</td><td>L${item.amount_linden.toLocaleString()}</td><td>{formatDateTime(item.created_at)}</td><td>{administrator ? <ReconciliationActions id={`${item.terminal_id}:${item.event_id}`} unlinked /> : "Administrator required"}</td></tr>)}
         </tbody></table></div>
       </section>
 
       {administrator && <section className="panel" aria-labelledby="stripe-review-heading">
         <h2 id="stripe-review-heading">Stripe event recovery</h2>
         <div className="table-scroll"><table className="table"><thead><tr><th>Event</th><th>Type</th><th>Status</th><th>Note</th><th>Updated</th><th>Action</th></tr></thead><tbody>
-          {stripeReviews.rows.map((item) => <tr key={item.event_id}><td>{item.event_id}</td><td>{item.event_type}</td><td>{item.processing_status}</td><td>{item.processing_note ?? "—"}</td><td>{item.updated_at.toLocaleString()}</td><td><ReconciliationActions id={`stripe-event:${item.event_id}`} kind="STRIPE_EVENT" /></td></tr>)}
+          {stripeReviews.rows.map((item) => <tr key={item.event_id}><td>{item.event_id}</td><td>{item.event_type}</td><td>{item.processing_status}</td><td>{item.processing_note ?? "—"}</td><td>{formatDateTime(item.updated_at)}</td><td><ReconciliationActions id={`stripe-event:${item.event_id}`} kind="STRIPE_EVENT" /></td></tr>)}
         </tbody></table></div>
       </section>}
 
       {administrator && <section className="panel" aria-labelledby="provider-action-heading">
         <h2 id="provider-action-heading">Provider actions</h2>
         <div className="table-scroll"><table className="table"><thead><tr><th>Kind</th><th>Reference</th><th>State</th><th>Error</th><th>Updated</th><th>Action</th></tr></thead><tbody>
-          {providerReviews.rows.map((item) => <tr key={item.id}><td>{item.kind}</td><td>{item.provider_reference}</td><td>{item.state}</td><td>{item.last_error ?? "—"}</td><td>{item.updated_at.toLocaleString()}</td><td><ProviderRecoveryAction id={item.id} state={item.state} /></td></tr>)}
+          {providerReviews.rows.map((item) => <tr key={item.id}><td>{item.kind}</td><td>{item.provider_reference}</td><td>{item.state}</td><td>{item.last_error ?? "—"}</td><td>{formatDateTime(item.updated_at)}</td><td><ProviderRecoveryAction id={item.id} state={item.state} /></td></tr>)}
         </tbody></table></div>
       </section>}
     </AppShell>

@@ -65,9 +65,9 @@ export function ReservationForm({ listings }: { listings: Listing[] }) {
   return <form className="action-form modern-form" onSubmit={submit}>
     <Field label="Available rental"><select name="listingId" required>{listings.map((listing) => <option key={listing.id} value={listing.id}>{listing.name}</option>)}</select></Field>
     <div className="typeahead-field">
-      <Field label="Find an existing resident or renter" help={searching ? "Searching…" : "Type at least three characters, then choose an account."}><input role="combobox" aria-label="Find an existing resident or renter" aria-autocomplete="list" aria-expanded={users.length > 0} aria-controls={listboxId} type="search" value={term} onChange={(event) => void search(event.target.value)} maxLength={63} placeholder="Search verified accounts" autoComplete="off" required /></Field>
+      <Field label="Find a verified rental account" help={searching ? "Searching…" : "Type at least three characters, then choose an active Resident, Renter, or Administrator account."}><input role="combobox" aria-label="Find a verified rental account" aria-autocomplete="list" aria-expanded={users.length > 0} aria-controls={listboxId} type="search" value={term} onChange={(event) => void search(event.target.value)} maxLength={63} placeholder="Search verified accounts" autoComplete="off" required /></Field>
       {users.length > 0 && <div className="typeahead-list" id={listboxId} role="listbox" aria-label="Matching accounts">{users.map((user) => <button key={user.id} type="button" role="option" aria-selected={targetUserId === user.id} onClick={() => selectUser(user)}><strong>{user.display_name}</strong><small>{user.canonical_username ?? "Verified account"}</small></button>)}</div>}
-      {!searching && term.trim().length >= 3 && users.length === 0 && !targetUserId && <small className="typeahead-empty">No matching resident or renter.</small>}
+      {!searching && term.trim().length >= 3 && users.length === 0 && !targetUserId && <small className="typeahead-empty">No matching verified rental account.</small>}
     </div>
     <Field label="Expires at"><input name="expiresAt" type="datetime-local" required /></Field>
     <Field label="Staff notes"><textarea name="notes" maxLength={1000} /></Field>

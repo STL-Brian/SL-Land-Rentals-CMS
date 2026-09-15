@@ -43,7 +43,7 @@ describe("management modal behavior",()=>{
     const second = new Promise<Response>((resolve) => { resolveSecond = resolve; });
     vi.spyOn(globalThis,"fetch").mockImplementation((input) => String(input).includes("q=ril") ? first : second);
     render(<ReservationForm listings={[{id:"listing-a",name:"Parcel A"}]}/>);
-    const search=screen.getByRole("combobox",{name:"Find an existing resident or renter"});
+    const search=screen.getByRole("combobox",{name:"Find a verified rental account"});
     fireEvent.change(search,{target:{value:"ril"}});
     fireEvent.change(search,{target:{value:"mir"}});
     resolveSecond({ok:true,json:async()=>[{id:"resident-b",display_name:"Mira Renter",canonical_username:"mira.renter"}]} as Response);
@@ -54,6 +54,6 @@ describe("management modal behavior",()=>{
   });
 
   it("uses an account typeahead and preserves reservation fields after server errors",async()=>{
-    const user=userEvent.setup();vi.spyOn(globalThis,"fetch").mockImplementation(async(input)=>String(input).includes("reservation-users")?({ok:true,json:async()=>[{id:"resident-a",display_name:"Riley Resident",canonical_username:"riley.resident"}]} as Response):({ok:false,json:async()=>({error:"Listing became unavailable"})} as Response));render(<ReservationForm listings={[{id:"listing-a",name:"Parcel A"}]}/>);const search=screen.getByRole("combobox",{name:"Find an existing resident or renter"});await user.type(search,"ril");const option=await screen.findByRole("option",{name:/Riley Resident/});await user.click(option);const expires=screen.getByLabelText("Expires at") as HTMLInputElement;const notes=screen.getByLabelText("Staff notes") as HTMLTextAreaElement;fireEvent.change(expires,{target:{value:"2026-09-15T12:00"}});await user.type(notes,"Keep these notes");await user.click(screen.getByRole("button",{name:"Create reservation"}));await screen.findByText("Listing became unavailable");expect(expires.value).toBe("2026-09-15T12:00");expect(notes.value).toBe("Keep these notes");expect((search as HTMLInputElement).value).toContain("Riley Resident");
+    const user=userEvent.setup();vi.spyOn(globalThis,"fetch").mockImplementation(async(input)=>String(input).includes("reservation-users")?({ok:true,json:async()=>[{id:"resident-a",display_name:"Riley Resident",canonical_username:"riley.resident"}]} as Response):({ok:false,json:async()=>({error:"Listing became unavailable"})} as Response));render(<ReservationForm listings={[{id:"listing-a",name:"Parcel A"}]}/>);const search=screen.getByRole("combobox",{name:"Find a verified rental account"});await user.type(search,"ril");const option=await screen.findByRole("option",{name:/Riley Resident/});await user.click(option);const expires=screen.getByLabelText("Expires at") as HTMLInputElement;const notes=screen.getByLabelText("Staff notes") as HTMLTextAreaElement;fireEvent.change(expires,{target:{value:"2026-09-15T12:00"}});await user.type(notes,"Keep these notes");await user.click(screen.getByRole("button",{name:"Create reservation"}));await screen.findByText("Listing became unavailable");expect(expires.value).toBe("2026-09-15T12:00");expect(notes.value).toBe("Keep these notes");expect((search as HTMLInputElement).value).toContain("Riley Resident");
   });
 });

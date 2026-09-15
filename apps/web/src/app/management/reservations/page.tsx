@@ -2,6 +2,7 @@ import { query } from "@lake-tech/db";
 import { requireViewer } from "../../../lib/auth";
 import { AppShell } from "../../../components/app-shell";
 import { CancelReservation,ReservationForm } from "../../../components/reservation-actions";
+import { formatDateTime } from "../../../lib/date-time";
 export const dynamic="force-dynamic";
 
 export default async function Reservations(){
@@ -18,6 +19,6 @@ export default async function Reservations(){
   ]);
   return <AppShell viewer={viewer} eyebrow="Management / Concierge" title="Reservations">
     <section className="panel"><h2>Create a time-bounded reservation</h2><p>Prices remain server-owned. Reservations create no invoice, payment, or lease.</p>{listings.rowCount?<ReservationForm listings={listings.rows}/>:<p className="empty">An available listing is required.</p>}</section>
-    <section className="panel"><div className="section-head"><h2>Live reservations</h2></div>{reservations.rowCount===0?<p className="empty">No active reservations in your scope.</p>:<div className="table-scroll"><table className="table"><thead><tr><th>Rental</th><th>Customer</th><th>Created by</th><th>Expires</th><th>Notes</th><th>Action</th></tr></thead><tbody>{reservations.rows.map(row=><tr key={row.id}><td>{row.listing_name}</td><td>{row.target_name}</td><td>{row.creator_name}</td><td>{row.expires_at.toLocaleString()}</td><td>{row.notes||"—"}</td><td><CancelReservation id={row.id}/></td></tr>)}</tbody></table></div>}</section>
+    <section className="panel"><div className="section-head"><h2>Live reservations</h2></div>{reservations.rowCount===0?<p className="empty">No active reservations in your scope.</p>:<div className="table-scroll"><table className="table"><thead><tr><th>Rental</th><th>Customer</th><th>Created by</th><th>Expires (Chicago)</th><th>Notes</th><th>Action</th></tr></thead><tbody>{reservations.rows.map(row=><tr key={row.id}><td>{row.listing_name}</td><td>{row.target_name}</td><td>{row.creator_name}</td><td>{formatDateTime(row.expires_at)}</td><td>{row.notes||"—"}</td><td><CancelReservation id={row.id}/></td></tr>)}</tbody></table></div>}</section>
   </AppShell>;
 }
