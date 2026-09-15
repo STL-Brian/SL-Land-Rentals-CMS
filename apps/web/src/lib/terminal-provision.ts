@@ -1,11 +1,17 @@
 import { z } from "zod";
 
 export const SECOND_LIFE_GRID = "Second Life" as const;
+const NULL_KEY = "00000000-0000-0000-0000-000000000000";
+const secondLifeKey = z.string()
+  .trim()
+  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+  .transform((value) => value.toLowerCase())
+  .refine((value) => value !== NULL_KEY);
 
 const terminalProvisionSchema = z.object({
-  listingId: z.string().uuid(),
-  objectId: z.string().uuid(),
-  ownerId: z.string().uuid(),
+  listingId: z.string().trim().uuid(),
+  objectId: secondLifeKey,
+  ownerId: secondLifeKey,
   shard: z.literal(SECOND_LIFE_GRID),
 }).strict();
 

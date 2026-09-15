@@ -21,9 +21,11 @@ string canonical(string timestamp, string nonce, string eventID, string body) {
 list signedHeaders(string eventID, string body) {
     string timestamp = (string)llGetUnixTime();
     string nonce = randomNonce();
+    string method = "POST";
+    if (body == "") method = "GET";
     // llHMAC returns Base64, matching the server's timing-safe verifier.
     string signature = llHMAC(TERMINAL_SECRET, canonical(timestamp, nonce, eventID, body), "sha256");
-    return [HTTP_METHOD, body == "" ? "GET" : "POST", HTTP_MIMETYPE, "application/json",
+    return [HTTP_METHOD, method, HTTP_MIMETYPE, "application/json",
         HTTP_CUSTOM_HEADER, "X-SL-Timestamp", timestamp,
         HTTP_CUSTOM_HEADER, "X-SL-Nonce", nonce,
         HTTP_CUSTOM_HEADER, "X-SL-Event-ID", eventID,
@@ -105,9 +107,11 @@ default {
                 gLastPollSuccess = llGetUnixTime();
                 gSequence = (integer)llJsonGetValue(body, ["sequence"]);
                 string renter = llJsonGetValue(body, ["renter"]);
-                gRenter = renter == JSON_NULL ? "Available" : renter;
+                if (renter == JSON_NULL) gRenter = "Available";
+                else gRenter = renter;
                 string ends = llJsonGetValue(body, ["endsAt"]);
-                gEndsAt = ends == JSON_NULL ? 0 : (integer)ends;
+                if (ends == JSON_NULL) gEndsAt = 0;
+                else gEndsAt = (integer)ends;
                 gPayPrice = (integer)llJsonGetValue(body, ["payPrice"]);
                 updateDisplay();
             }
