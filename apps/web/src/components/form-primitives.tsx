@@ -29,6 +29,8 @@ export function Modal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
   const wasOpenRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   if (open && !wasOpenRef.current && typeof document !== "undefined") {
     restoreRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   }
@@ -46,7 +48,7 @@ export function Modal({
     function keydown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -69,7 +71,7 @@ export function Modal({
       const restore = restoreRef.current;
       queueMicrotask(() => restore?.focus());
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return (

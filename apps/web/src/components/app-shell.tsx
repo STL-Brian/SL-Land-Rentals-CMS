@@ -6,7 +6,7 @@ export function AppShell({ viewer, title, eyebrow, children }: { viewer: Viewer;
   const nav = managementNavigation(viewer.role);
   return <div className="app-layout">
     <aside className="app-sidebar" aria-label="Management navigation">
-      <Link className="brand app-brand" href="/"><span className="brand-mark">T</span><span>LAKE TECH<small>ESTATES</small></span></Link>
+      <Link className="brand app-brand" href="/"><span className="brand-mark" aria-hidden="true">LTE</span><span>LAKE TECH<small>ESTATES</small></span></Link>
       <div className="identity"><strong>{viewer.display_name}</strong><span className="role-badge">{roleLabel(viewer.role)}</span></div>
       <nav>{nav.map(item => <Link key={item.href} href={item.href}>{item.label}</Link>)}<Link href="/account/password">Change password</Link></nav>
       <form action="/api/auth/logout" method="post"><button className="button secondary wide">Sign out</button></form>

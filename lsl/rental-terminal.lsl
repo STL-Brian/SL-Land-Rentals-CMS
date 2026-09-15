@@ -67,6 +67,11 @@ sendPayment(string queueKey, string eventID, string body) {
     gRequestIds += [request];
     gQueueKeys += [queueKey];
 }
+sendHealthResponse(string checkID) {
+    string body = llList2Json(JSON_OBJECT, ["checkId", checkID]);
+    string eventID = "health-" + (string)llGenerateKey();
+    llHTTPRequest(API_BASE + "/api/terminal/health", signedHeaders(eventID, body), body);
+}
 retryQueue() {
     list keys = llLinksetDataFindKeys("^payment_", 0, MAX_QUEUED_PAYMENTS);
     integer i;
@@ -180,6 +185,12 @@ default {
                 else gEndsAt = (integer)ends;
                 gPayPrice = (integer)llJsonGetValue(body, ["payPrice"]);
                 updateDisplay();
+                list events = llJson2List(llJsonGetValue(body, ["events"]));
+                integer i;
+                for (i = 0; i < llGetListLength(events); ++i) {
+                    string event = llList2String(events, i);
+                    if (llJsonGetValue(event, ["kind"]) == "HEALTH_CHECK") sendHealthResponse(llJsonGetValue(event, ["payload", "checkId"]));
+                }
             }
             return;
         }

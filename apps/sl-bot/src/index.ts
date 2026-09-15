@@ -1,7 +1,7 @@
 import { openMessage, validateBotRuntimeConfig } from "@lake-tech/core";
 import { closePool, pool, transaction } from "@lake-tech/db";
 import { NodeMetaverseAdapter, retryDelaySeconds, SimulationAdapter, type MessageAdapter } from "./adapters.js";
-const cfg=validateBotRuntimeConfig(process.env);let stopping=false;const db=pool();const workerId=process.env.HOSTNAME??crypto.randomUUID();
+const cfg=validateBotRuntimeConfig(process.env);let stopping=false;const db=pool();const workerId="sl-bot";
 const adapter:MessageAdapter=cfg.simulation?new SimulationAdapter(async(avatarId,message)=>{await db.query("INSERT INTO simulation_mailbox(avatar_id,message) VALUES($1,$2)",[avatarId,message])}):new NodeMetaverseAdapter(cfg.botUsername!,cfg.botPassword!);
 const timeout=<T>(work:Promise<T>,ms=10_000)=>Promise.race([work,new Promise<T>((_,reject)=>setTimeout(()=>reject(new Error("adapter send timeout")),ms))]);
 async function health(error:string|null=null){await db.query(`INSERT INTO bot_health(worker_id,mode,adapter_connected,last_db_ok_at,heartbeat_at,last_error) VALUES($1,$2,$3,now(),now(),$4) ON CONFLICT(worker_id) DO UPDATE SET adapter_connected=$3,last_db_ok_at=now(),heartbeat_at=now(),last_error=$4`,[workerId,cfg.simulation?"simulation":"real",adapter.isConnected(),error]);}

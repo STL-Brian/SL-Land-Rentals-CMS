@@ -6,9 +6,9 @@ x-app-env: &app-env
   SESSION_COOKIE_SECURE: "true"
   TRUST_PROXY: "true"
   DATABASE_URL: postgresql://lake_tech:lake_tech_local_dev@postgres:5432/lake_tech
-  OTP_HMAC_SECRET: simulation-only-change-this-32-char-key
-  SESSION_HMAC_SECRET: simulation-session-change-this-32-key
-  TERMINAL_SECRET_ENCRYPTION_KEY: simulation-terminal-encryption-key-change-this
+  OTP_HMAC_SECRET: ${OTP_HMAC_SECRET:-}
+  SESSION_HMAC_SECRET: ${SESSION_HMAC_SECRET:-}
+  TERMINAL_SECRET_ENCRYPTION_KEY: ${TERMINAL_SECRET_ENCRYPTION_KEY:-}
   SIMULATION_MODE: "true"
   SL_BOT_SIMULATION_MODE: "false"
   ALLOW_SIMULATION_IN_PRODUCTION: "true"
@@ -45,7 +45,7 @@ services:
     command: ["npm", "run", "db:seed"]
     environment:
       DATABASE_URL: postgresql://lake_tech:lake_tech_local_dev@postgres:5432/lake_tech
-      TERMINAL_SECRET_ENCRYPTION_KEY: simulation-terminal-encryption-key-change-this
+      TERMINAL_SECRET_ENCRYPTION_KEY: ${TERMINAL_SECRET_ENCRYPTION_KEY:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -99,6 +99,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+    restart: unless-stopped
+  callback-worker:
+    build:
+      context: .
+      dockerfile: docker/bot.Dockerfile
+    command: ["node", "apps/sl-bot/dist/callback-worker.js"]
+    environment:
+      <<: *app-env
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "const{Client}=require('pg');const c=new Client({connectionString:process.env.DATABASE_URL});c.connect().then(()=>c.query(\"SELECT 1 FROM bot_health WHERE worker_id='callback-worker' AND heartbeat_at>now()-interval '30 seconds' AND adapter_connected\")).then(r=>{if(!r.rowCount)process.exitCode=1}).catch(()=>process.exitCode=1).finally(()=>c.end())"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     restart: unless-stopped
 volumes:
   postgres_data:
