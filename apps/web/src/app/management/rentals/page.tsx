@@ -13,5 +13,5 @@ export default async function Rentals() {
     FROM rentals r JOIN listings l ON l.id=r.listing_id JOIN users u ON u.id=r.user_id
     LEFT JOIN sl_identities s ON s.user_id=u.id ORDER BY r.created_at DESC`);
   const displayRows = rows.rows.map((row) => ({ id: row.id, name: row.name, displayName: row.display_name, canonicalUsername: row.canonical_username, status: row.status, startsAt: row.starts_at.toISOString(), endsAt: row.ends_at.toISOString() }));
-  return <AppShell viewer={viewer} eyebrow="Management / Leasing" title="Rentals"><section className="panel"><div className="section-head"><div><h2>Lease history</h2><p>Active rentals are shown by default. Change the filter to review past terms.</p></div></div><RentalsTable rows={displayRows}/></section></AppShell>;
+  return <AppShell viewer={viewer} eyebrow="Management / Leasing" title="Rentals"><section className="panel card"><div className="section-head"><div><h2>Lease history</h2><p>Active rentals are shown by default. Change the filter to review past terms.</p></div></div><RentalsTable rows={displayRows}/></section></AppShell>;
 }

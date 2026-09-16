@@ -63,15 +63,15 @@ export function ReservationForm({ listings }: { listings: Listing[] }) {
   }
 
   return <form className="action-form modern-form" onSubmit={submit}>
-    <Field label="Available rental"><select name="listingId" required>{listings.map((listing) => <option key={listing.id} value={listing.id}>{listing.name}</option>)}</select></Field>
+    <Field label="Available rental"><select className="form-select" name="listingId" required>{listings.map((listing) => <option key={listing.id} value={listing.id}>{listing.name}</option>)}</select></Field>
     <div className="typeahead-field">
-      <Field label="Find a verified rental account" help={searching ? "Searching…" : "Type at least three characters, then choose an active Resident, Renter, or Administrator account."}><input role="combobox" aria-label="Find a verified rental account" aria-autocomplete="list" aria-expanded={users.length > 0} aria-controls={listboxId} type="search" value={term} onChange={(event) => void search(event.target.value)} maxLength={63} placeholder="Search verified accounts" autoComplete="off" required /></Field>
+      <Field label="Find a verified rental account" help={searching ? "Searching…" : "Type at least three characters, then choose an active Resident, Renter, or Administrator account."}><input className="form-control" role="combobox" aria-label="Find a verified rental account" aria-autocomplete="list" aria-expanded={users.length > 0} aria-controls={listboxId} type="search" value={term} onChange={(event) => void search(event.target.value)} maxLength={63} placeholder="Search verified accounts" autoComplete="off" required /></Field>
       {users.length > 0 && <div className="typeahead-list" id={listboxId} role="listbox" aria-label="Matching accounts">{users.map((user) => <button key={user.id} type="button" role="option" aria-selected={targetUserId === user.id} onClick={() => selectUser(user)}><strong>{user.display_name}</strong><small>{user.canonical_username ?? "Verified account"}</small></button>)}</div>}
       {!searching && term.trim().length >= 3 && users.length === 0 && !targetUserId && <small className="typeahead-empty">No matching verified rental account.</small>}
     </div>
-    <Field label="Expires at"><input name="expiresAt" type="datetime-local" required /></Field>
-    <Field label="Staff notes"><textarea name="notes" maxLength={1000} /></Field>
-    <FormActions><button className="button" type="submit" disabled={saving}>{saving ? "Creating…" : "Create reservation"}</button></FormActions>
+    <Field label="Expires at"><input className="form-control" name="expiresAt" type="datetime-local" required /></Field>
+    <Field label="Staff notes"><textarea className="form-control" name="notes" maxLength={1000} /></Field>
+    <FormActions><button className="button btn btn-primary" type="submit" disabled={saving}>{saving ? "Creating…" : "Create reservation"}</button></FormActions>
     {message && <p className="form-message" role="alert">{message}</p>}
   </form>;
 }
@@ -88,5 +88,5 @@ export function CancelReservation({ id }: { id: string }) {
     const body = await response.json().catch(() => ({})) as { error?: string };
     if (response.ok) location.reload(); else { setMessage(body.error ?? "Cancellation failed."); setSaving(false); }
   }
-  return <><button className="button danger" type="button" onClick={() => setOpen(true)}>Cancel</button><Modal open={open} onClose={() => setOpen(false)} title="Cancel reservation" description="This releases the rental for other customers." closeOnBackdrop={!saving}><div className="modern-form"><Field label="Cancellation reason"><textarea autoFocus value={reason} onChange={(event) => setReason(event.target.value)} required /></Field>{message && <p role="alert" className="form-message">{message}</p>}<FormActions><button className="button secondary" type="button" onClick={() => setOpen(false)}>Keep reservation</button><button className="button danger" type="button" disabled={saving} onClick={() => void cancel()}>{saving ? "Cancelling…" : "Confirm cancellation"}</button></FormActions></div></Modal></>;
+  return <><button className="button btn btn-danger danger" type="button" onClick={() => setOpen(true)}>Cancel</button><Modal open={open} onClose={() => setOpen(false)} title="Cancel reservation" description="This releases the rental for other customers." closeOnBackdrop={!saving}><div className="modern-form"><Field label="Cancellation reason"><textarea className="form-control" autoFocus value={reason} onChange={(event) => setReason(event.target.value)} required /></Field>{message && <p role="alert" className="form-message">{message}</p>}<FormActions><button className="button btn btn-outline-light secondary" type="button" onClick={() => setOpen(false)}>Keep reservation</button><button className="button btn btn-danger danger" type="button" disabled={saving} onClick={() => void cancel()}>{saving ? "Cancelling…" : "Confirm cancellation"}</button></FormActions></div></Modal></>;
 }

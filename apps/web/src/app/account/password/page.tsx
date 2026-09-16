@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function PasswordPage() {
   const viewer = await requireViewer();
   return <AppShell viewer={viewer} eyebrow="Account / Security" title="Change password">
-    <section className="panel" style={{ maxWidth: 640 }}>
+    <section className="panel card" style={{ maxWidth: 640 }}>
       <div className="section-head"><div><h2>Update your password</h2><p>Changing your password signs out every other session on this account.</p></div></div>
       <PasswordChangeForm />
     </section>

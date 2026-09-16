@@ -76,27 +76,29 @@ export function Modal({
   if (!open) return null;
   return (
     <div
-      className="modal-backdrop"
+      className="modal-backdrop modal d-block"
       onMouseDown={(event) => {
         if (closeOnBackdrop && event.target === event.currentTarget) onClose();
       }}
     >
       <div
         ref={dialogRef}
-        className="modal-surface"
+        className="modal-surface modal-dialog modal-dialog-scrollable"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
       >
-        <header className="modal-header">
-          <div>
-            <h2 id={titleId}>{title}</h2>
-            {description && <p id={descriptionId}>{description}</p>}
-          </div>
-          <button className="icon-button" type="button" onClick={onClose} aria-label={`Close ${title}`}>×</button>
-        </header>
-        <div className="modal-body">{children}</div>
+        <div className="modal-content">
+          <header className="modal-header">
+            <div>
+              <h2 id={titleId}>{title}</h2>
+              {description && <p id={descriptionId}>{description}</p>}
+            </div>
+            <button className="icon-button btn-close btn-close-white" type="button" onClick={onClose} aria-label={`Close ${title}`}></button>
+          </header>
+          <div className="modal-body">{children}</div>
+        </div>
       </div>
     </div>
   );
@@ -107,7 +109,7 @@ export function FormGrid(props: HTMLAttributes<HTMLDivElement>) {
 }
 
 export function Field({ label, help, children, className = "", ...props }: LabelHTMLAttributes<HTMLLabelElement> & { label: string; help?: string; children: ReactNode }) {
-  return <label {...props} className={`form-field ${className}`.trim()}><span>{label}</span>{children}{help && <small>{help}</small>}</label>;
+  return <label {...props} className={`form-field form-group ${className}`.trim()}><span className="form-label">{label}</span>{children}{help && <small className="form-text">{help}</small>}</label>;
 }
 
 export function FormActions({ children }: { children: ReactNode }) {

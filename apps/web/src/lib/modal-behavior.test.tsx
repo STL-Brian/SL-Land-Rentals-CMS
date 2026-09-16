@@ -12,7 +12,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 function ModalHarness() {
   const [open,setOpen]=useState(false);
-  return <><button onClick={()=>setOpen(true)}>Open settings</button><Modal open={open} onClose={()=>setOpen(false)} title="Settings" description="Dialog behavior test"><input aria-label="First field"/><button>Last action</button></Modal></>;
+  return <><button onClick={()=>setOpen(true)}>Open settings</button><Modal open={open} onClose={()=>setOpen(false)} title="Settings" description="Dialog behavior test"><input className="form-control" aria-label="First field"/><button>Last action</button></Modal></>;
 }
 
 const listing={id:"listing-a",name:"Parcel A",kind:"PARCEL",published:true,weeklyLinden:1000,setupLinden:100,stripeWeeklyMinor:1234,stripeSetupMinor:250,stripeCurrency:"USD"};

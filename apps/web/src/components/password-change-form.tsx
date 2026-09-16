@@ -35,10 +35,10 @@ export function PasswordChangeForm() {
   }
 
   return <form className="modern-form" onSubmit={submit}>
-    <div className="form-field"><label htmlFor="currentPassword">Current password</label><input id="currentPassword" name="currentPassword" type="password" minLength={12} maxLength={1024} autoComplete="current-password" required /></div>
-    <div className="form-field"><label htmlFor="password">New password</label><input id="password" name="password" type="password" minLength={12} maxLength={1024} autoComplete="new-password" required /><small>Use at least 12 characters.</small></div>
-    <div className="form-field"><label htmlFor="confirmation">Confirm new password</label><input id="confirmation" name="confirmation" type="password" minLength={12} maxLength={1024} autoComplete="new-password" required /></div>
+    <div className="form-field"><label htmlFor="currentPassword">Current password</label><input className="form-control" id="currentPassword" name="currentPassword" type="password" minLength={12} maxLength={1024} autoComplete="current-password" required /></div>
+    <div className="form-field"><label htmlFor="password">New password</label><input className="form-control" id="password" name="password" type="password" minLength={12} maxLength={1024} autoComplete="new-password" required /><small>Use at least 12 characters.</small></div>
+    <div className="form-field"><label htmlFor="confirmation">Confirm new password</label><input className="form-control" id="confirmation" name="confirmation" type="password" minLength={12} maxLength={1024} autoComplete="new-password" required /></div>
     {message && <p className="form-message" role="alert">{message}</p>}
-    <div className="form-actions"><button className="button" type="submit" disabled={saving}>{saving ? "Changing…" : "Change password"}</button></div>
+    <div className="form-actions"><button className="button btn btn-primary" type="submit" disabled={saving}>{saving ? "Changing…" : "Change password"}</button></div>
   </form>;
 }

@@ -72,9 +72,9 @@ export default async function Payments() {
 
   return (
     <AppShell viewer={viewer} eyebrow="Management / Finance" title="Payments & reconciliation">
-      <section className="panel" aria-labelledby="payment-ledger-heading">
+      <section className="panel card" aria-labelledby="payment-ledger-heading">
         <div className="section-head"><div><h2 id="payment-ledger-heading">Payment ledger</h2><p>Provider state and operator review.</p></div></div>
-        <div className="table-scroll"><table className="table"><thead><tr><th>Rental</th><th>Resident</th><th>Provider</th><th>Amount</th><th>Status</th><th>Received</th><th>Action</th></tr></thead><tbody>
+        <div className="table-scroll"><table className="table table-dark table-hover align-middle mb-0"><thead><tr><th>Rental</th><th>Resident</th><th>Provider</th><th>Amount</th><th>Status</th><th>Received</th><th>Action</th></tr></thead><tbody>
           {payments.rows.map((payment) => <tr key={payment.id}>
             <td>{payment.listing_name}</td><td>{payment.display_name}</td><td>{payment.provider}</td>
             <td>{payment.amount_linden !== null ? `L$${payment.amount_linden.toLocaleString()}` : `${formatMoneyMinor(payment.amount_minor!)} ${(payment.currency ?? "").toUpperCase()}`}</td>
@@ -84,24 +84,24 @@ export default async function Payments() {
         </tbody></table></div>
       </section>
 
-      <section className="panel" aria-labelledby="unlinked-terminal-heading">
+      <section className="panel card" aria-labelledby="unlinked-terminal-heading">
         <h2 id="unlinked-terminal-heading">Unlinked terminal payments</h2>
         <p>Payments whose Second Life payer has not been linked to an account.</p>
-        <div className="table-scroll"><table className="table"><thead><tr><th>Rental</th><th>Payer avatar</th><th>Amount</th><th>Received</th><th>Action</th></tr></thead><tbody>
+        <div className="table-scroll"><table className="table table-dark table-hover align-middle mb-0"><thead><tr><th>Rental</th><th>Payer avatar</th><th>Amount</th><th>Received</th><th>Action</th></tr></thead><tbody>
           {terminalReviews.rows.map((item) => <tr key={`${item.terminal_id}:${item.event_id}`}><td>{item.listing_name}</td><td>{item.payer_avatar_id}</td><td>L${item.amount_linden.toLocaleString()}</td><td><LocalDateTime value={item.created_at}/></td><td>{administrator ? <ReconciliationActions id={`${item.terminal_id}:${item.event_id}`} unlinked /> : "Administrator required"}</td></tr>)}
         </tbody></table></div>
       </section>
 
-      {administrator && <section className="panel" aria-labelledby="stripe-review-heading">
+      {administrator && <section className="panel card" aria-labelledby="stripe-review-heading">
         <h2 id="stripe-review-heading">Stripe event recovery</h2>
-        <div className="table-scroll"><table className="table"><thead><tr><th>Event</th><th>Type</th><th>Status</th><th>Note</th><th>Updated</th><th>Action</th></tr></thead><tbody>
+        <div className="table-scroll"><table className="table table-dark table-hover align-middle mb-0"><thead><tr><th>Event</th><th>Type</th><th>Status</th><th>Note</th><th>Updated</th><th>Action</th></tr></thead><tbody>
           {stripeReviews.rows.map((item) => <tr key={item.event_id}><td>{item.event_id}</td><td>{item.event_type}</td><td>{item.processing_status}</td><td>{item.processing_note ?? "—"}</td><td><LocalDateTime value={item.updated_at}/></td><td><ReconciliationActions id={`stripe-event:${item.event_id}`} kind="STRIPE_EVENT" /></td></tr>)}
         </tbody></table></div>
       </section>}
 
-      {administrator && <section className="panel" aria-labelledby="provider-action-heading">
+      {administrator && <section className="panel card" aria-labelledby="provider-action-heading">
         <h2 id="provider-action-heading">Provider actions</h2>
-        <div className="table-scroll"><table className="table"><thead><tr><th>Kind</th><th>Reference</th><th>State</th><th>Error</th><th>Updated</th><th>Action</th></tr></thead><tbody>
+        <div className="table-scroll"><table className="table table-dark table-hover align-middle mb-0"><thead><tr><th>Kind</th><th>Reference</th><th>State</th><th>Error</th><th>Updated</th><th>Action</th></tr></thead><tbody>
           {providerReviews.rows.map((item) => <tr key={item.id}><td>{item.kind}</td><td>{item.provider_reference}</td><td>{item.state}</td><td>{item.last_error ?? "—"}</td><td><LocalDateTime value={item.updated_at}/></td><td><ProviderRecoveryAction id={item.id} state={item.state} /></td></tr>)}
         </tbody></table></div>
       </section>}
