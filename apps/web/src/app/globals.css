@@ -34,3 +34,6 @@ button,input,select,textarea{font:inherit}input,select,textarea{width:100%;min-h
 body{background-color:var(--bs-body-bg);color:var(--bs-body-color)}
 h1,h2,h3,h4,h5,h6,.navbar-brand,.navbar-dark .nav-link,.app-sidebar .nav-link{color:var(--bs-heading-color)}
 .navbar-dark .nav-link:hover,.navbar-dark .nav-link:focus,.app-sidebar .nav-link:hover,.app-sidebar .nav-link:focus-visible{color:#fff}
+.modal-header .btn-close{width:42px;height:42px;padding:0;opacity:1;border:1px solid #394363;border-radius:12px;background-color:#171d31;background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%235de5d5' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.8' d='M2 2l12 12M14 2L2 14'/%3e%3c/svg%3e");background-position:center;background-repeat:no-repeat;background-size:16px 16px}
+.modal-header .btn-close:hover{background-color:#202743}
+.modal-header .btn-close:focus-visible{outline:3px solid #5de5d566;outline-offset:2px}
