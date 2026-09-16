@@ -75,10 +75,14 @@ sendHealthResponse(string checkID) {
 retryQueue() {
     list keys = llLinksetDataFindKeys("^payment_", 0, MAX_QUEUED_PAYMENTS);
     integer i;
-    for (i = 0; i < llGetListLength(keys); ++i) {
-        string queueKey = llList2String(keys, i);
-        string packed = llLinksetDataRead(queueKey);
+    string queueKey;
+    string packed;
+    i = 0;
+    while (i < llGetListLength(keys)) {
+        queueKey = llList2String(keys, i);
+        packed = llLinksetDataRead(queueKey);
         if (packed != "") sendPayment(queueKey, llJsonGetValue(packed, ["eventId"]), llJsonGetValue(packed, ["body"]));
+        i += 1;
     }
 }
 callbackResponse(key requestID, integer status, string message) {
@@ -185,11 +189,15 @@ default {
                 else gEndsAt = (integer)ends;
                 gPayPrice = (integer)llJsonGetValue(body, ["payPrice"]);
                 updateDisplay();
-                list events = llJson2List(llJsonGetValue(body, ["events"]));
                 integer i;
-                for (i = 0; i < llGetListLength(events); ++i) {
-                    string event = llList2String(events, i);
-                    if (llJsonGetValue(event, ["kind"]) == "HEALTH_CHECK") sendHealthResponse(llJsonGetValue(event, ["payload", "checkId"]));
+                list events;
+                string eventJson;
+                events = llJson2List(llJsonGetValue(body, ["events"]));
+                i = 0;
+                while (i < llGetListLength(events)) {
+                    eventJson = llList2String(events, i);
+                    if (llJsonGetValue(eventJson, ["kind"]) == "HEALTH_CHECK") sendHealthResponse(llJsonGetValue(eventJson, ["payload", "checkId"]));
+                    i += 1;
                 }
             }
             return;
