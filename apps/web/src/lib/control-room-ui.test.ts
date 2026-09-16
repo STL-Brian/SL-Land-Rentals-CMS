@@ -20,4 +20,6 @@ describe("Control Room management controls",()=>{
  });
 
  it("filters simulation workers from the service health query",()=>{const page=readFileSync(new URL("../app/management/audit/page.tsx",import.meta.url),"utf8");expect(page).toContain("mode NOT IN ('simulation','SIMULATION')");expect(page).toContain("callback backlog");});
+ it("declares a device-width viewport for mobile navigation",()=>{const layout=readFileSync(new URL("../app/layout.tsx",import.meta.url),"utf8");expect(layout).toContain("viewport:Viewport={width:\"device-width\",initialScale:1}");});
+
 });
