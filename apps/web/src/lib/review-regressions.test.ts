@@ -48,6 +48,9 @@ describe("fail-closed review regressions", () => {
   it("bounds database health probes so dependency failure returns promptly", () => {
     expect(read("packages/db/src/index.ts")).toMatch(/connectionTimeoutMillis.*query_timeout/);
   });
+  it("uses a flat health-check poll contract for LSL clients",()=>{const poll=read("apps/web/src/app/api/terminal/poll/route.ts");const lsl=read("lsl/rental-terminal.lsl");expect(poll).toContain("healthChecks");expect(lsl).toContain('llJsonGetValue(body, ["healthChecks"])');expect(lsl).not.toContain('llJsonGetValue(eventJson, ["payload", "checkId"]');});
+  it("supports four paid weeks and preserves invalid payments for review",()=>{const payment=read("apps/web/src/app/api/terminal/payment/route.ts");expect(payment).toContain("paidWeeks");expect(payment).toContain("$3 * interval '1 week'");expect(payment).toContain('if (!validWeeks) action = "MANUAL_REVIEW"');expect(payment).not.toContain("expected = validWeeks ? setupPrice + basePrice * paidWeeks : -1");});
+  it("reads the saved region field in listing management",()=>{expect(read("apps/web/src/app/management/listings/page.tsx")).toContain('pj.region_name AS "regionName"');});
   it("enforces reservations in terminal and reconciliation allocation paths", () => {
     const payment = read("apps/web/src/app/api/terminal/payment/route.ts");
     const poll = read("apps/web/src/app/api/terminal/poll/route.ts");

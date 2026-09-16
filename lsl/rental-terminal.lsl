@@ -11,6 +11,9 @@ integer gPayPrice = 0;
 string gRenter = "Available";
 integer gEndsAt = 0;
 integer gLastPollSuccess = 0;
+string gRentalName = "Rental terminal";
+integer gPrims = 0;
+list gPayPrices;
 key gPollRequest;
 key gRegisterRequest;
 key gUrlRequest;
@@ -42,13 +45,21 @@ list signedHeaders(string eventID, string body) {
 updateDisplay() {
     string text;
     integer remain;
+    integer weeks;
+    integer days;
     if (gEndsAt > llGetUnixTime()) {
         remain = gEndsAt - llGetUnixTime();
-        text = gRenter + "\n" + (string)(remain / 86400) + "d " + (string)((remain % 86400) / 3600) + "h remaining";
-    } else text = "Available now";
-    if (gPayPrice > 0) text += "\nL$" + (string)gPayPrice + " / week";
+        weeks = remain / 604800;
+        days = (remain % 604800) / 86400;
+        text = gRentalName + "\nRented by: " + gRenter + "\nTime remaining: ";
+        if (weeks > 0) text += (string)weeks + " weeks, " + (string)days + " days";
+        else text += (string)days + " days";
+    } else {
+        text = gRentalName + "\nAvailable now";
+        if (gPayPrice > 0) text += "\nL$" + (string)gPayPrice + "/wk, " + (string)gPrims + " prims";
+    }
     llSetText(text, <0.45, 0.95, 0.85>, 1.0);
-    if (gPayPrice > 0) llSetPayPrice(PAY_HIDE, [gPayPrice, PAY_HIDE, PAY_HIDE, PAY_HIDE]);
+    if (gPayPrice > 0) llSetPayPrice(gPayPrice, gPayPrices);
     else llSetPayPrice(PAY_HIDE, [PAY_HIDE, PAY_HIDE, PAY_HIDE, PAY_HIDE]);
 }
 sendPoll() {
@@ -199,27 +210,39 @@ default {
         integer at;
         string renter;
         string ends;
-        list events;
-        string eventJson;
+        string rentalName;
+        list payPrices;
+        list healthChecks;
+        string checkID;
         string queueKey;
         if (requestID == gPollRequest) {
             gPollRequest = NULL_KEY;
             if (status == 200) {
                 gLastPollSuccess = llGetUnixTime();
                 gSequence = (integer)llJsonGetValue(body, ["sequence"]);
+                rentalName = llJsonGetValue(body, ["rentalName"]);
+                if (rentalName != JSON_INVALID && rentalName != JSON_NULL) gRentalName = rentalName;
+                gPrims = (integer)llJsonGetValue(body, ["prims"]);
+                payPrices = llJson2List(llJsonGetValue(body, ["payPrices"]));
+                if (llGetListLength(payPrices) == 4) {
+                    gPayPrices = payPrices;
+                    gPayPrice = llList2Integer(gPayPrices, 0);
+                } else {
+                    gPayPrices = [];
+                    gPayPrice = 0;
+                }
                 renter = llJsonGetValue(body, ["renter"]);
                 if (renter == JSON_NULL) gRenter = "Available";
                 else gRenter = renter;
                 ends = llJsonGetValue(body, ["endsAt"]);
                 if (ends == JSON_NULL) gEndsAt = 0;
                 else gEndsAt = (integer)ends;
-                gPayPrice = (integer)llJsonGetValue(body, ["payPrice"]);
                 updateDisplay();
-                events = llJson2List(llJsonGetValue(body, ["events"]));
+                healthChecks = llJson2List(llJsonGetValue(body, ["healthChecks"]));
                 i = 0;
-                while (i < llGetListLength(events)) {
-                    eventJson = llList2String(events, i);
-                    if (llJsonGetValue(eventJson, ["kind"]) == "HEALTH_CHECK") sendHealthResponse(llJsonGetValue(eventJson, ["payload", "checkId"]));
+                while (i < llGetListLength(healthChecks)) {
+                    checkID = llList2String(healthChecks, i);
+                    if (checkID != "" && checkID != JSON_INVALID) sendHealthResponse(checkID);
                     i += 1;
                 }
             }

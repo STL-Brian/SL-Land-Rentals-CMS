@@ -103,7 +103,12 @@ export async function POST(req: Request) {
         [terminal.listing_id],
       );
 
-      const expected = rate.weekly_linden + (active.rowCount ? 0 : rate.setup_linden);
+      const basePrice = rate.weekly_linden;
+      const setupPrice = active.rowCount ? 0 : rate.setup_linden;
+      const paidWeeks = Math.floor((parsed.amountLinden - setupPrice) / basePrice);
+      const validWeeks = parsed.amountLinden - setupPrice === paidWeeks * basePrice && paidWeeks >= 1 && paidWeeks <= 4;
+      // Keep the durable review record valid even when the received amount is not one of the four supported durations.
+      const expected = validWeeks ? setupPrice + basePrice * paidWeeks : basePrice + setupPrice;
       let action = decideLindenPayment({
         received: parsed.amountLinden,
         expected,
@@ -111,6 +116,7 @@ export async function POST(req: Request) {
         payerAvatarId: parsed.payerAvatarId,
         payerKnown: payer.rowCount === 1,
       });
+      if (!validWeeks) action = "MANUAL_REVIEW";
       let rentalId = active.rows[0]?.id ?? null;
       const payerUserId = payer.rows[0]?.user_id ?? null;
       const liveReservation = reservation.rows[0];
@@ -122,9 +128,9 @@ export async function POST(req: Request) {
       if (action === "START") {
         const started = await db.query<{ id: string }>(
           `INSERT INTO rentals(listing_id,user_id,status,starts_at,ends_at)
-           VALUES($1,$2,'ACTIVE',now(),now()+interval '1 week')
+           VALUES($1,$2,'ACTIVE',now(),now()+($3 * interval '1 week'))
            ON CONFLICT DO NOTHING RETURNING id`,
-          [terminal.listing_id, payerUserId],
+          [terminal.listing_id, payerUserId, paidWeeks],
         );
         rentalId = started.rows[0]?.id ?? null;
         if (!rentalId) {
@@ -159,8 +165,8 @@ export async function POST(req: Request) {
 
       if (action === "EXTEND") {
         const extended = await db.query(
-          "UPDATE rentals SET ends_at=ends_at+interval '1 week' WHERE id=$1 AND status='ACTIVE'",
-          [rentalId],
+          "UPDATE rentals SET ends_at=ends_at+($2 * interval '1 week') WHERE id=$1 AND status='ACTIVE'",
+          [rentalId, paidWeeks],
         );
         if (extended.rowCount !== 1) throw new Error("rental extension conflict");
       }
