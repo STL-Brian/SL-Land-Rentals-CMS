@@ -28,3 +28,9 @@ button,input,select,textarea{font:inherit}input,select,textarea{width:100%;min-h
 .form-control:focus,.form-select:focus{background-color:#0b1020;color:var(--ink);border-color:var(--cyan);box-shadow:0 0 0 .25rem #5de5d533}
 .form-control::placeholder{color:#8993af}
 @media(max-width:640px){.modal-backdrop .modal-dialog{width:100%;max-width:none;margin:0}.modal-backdrop .modal-surface{width:100%;}}
+
+/* Keep Bootstrap's component variables aligned with the LTE dark theme. */
+:root,[data-bs-theme="dark"]{--bs-body-bg:#070914;--bs-body-color:#f5f6ff;--bs-emphasis-color:#fff;--bs-secondary-color:#a5adc7;--bs-tertiary-bg:#0b1020;--bs-border-color:#262d48;--bs-heading-color:#f5f6ff;--bs-card-bg:#101426;--bs-card-color:#f5f6ff;--bs-navbar-color:#f5f6ff;--bs-navbar-hover-color:#fff;--bs-navbar-active-color:#fff}
+body{background-color:var(--bs-body-bg);color:var(--bs-body-color)}
+h1,h2,h3,h4,h5,h6,.navbar-brand,.navbar-dark .nav-link,.app-sidebar .nav-link{color:var(--bs-heading-color)}
+.navbar-dark .nav-link:hover,.navbar-dark .nav-link:focus,.app-sidebar .nav-link:hover,.app-sidebar .nav-link:focus-visible{color:#fff}
