@@ -41,8 +41,9 @@ list signedHeaders(string eventID, string body) {
 }
 updateDisplay() {
     string text;
+    integer remain;
     if (gEndsAt > llGetUnixTime()) {
-        integer remain = gEndsAt - llGetUnixTime();
+        remain = gEndsAt - llGetUnixTime();
         text = gRenter + "\n" + (string)(remain / 86400) + "d " + (string)((remain % 86400) / 3600) + "h remaining";
     } else text = "Available now";
     if (gPayPrice > 0) text += "\nL$" + (string)gPayPrice + " / week";
@@ -62,8 +63,9 @@ registerCallback() {
     gRegisterRequest = llHTTPRequest(API_BASE + "/api/terminal/register", signedHeaders(eventID, body), body);
 }
 sendPayment(string queueKey, string eventID, string body) {
+    key request;
     if (llListFindList(gQueueKeys, [queueKey]) != -1) return;
-    key request = llHTTPRequest(API_BASE + "/api/terminal/payment", signedHeaders(eventID, body), body);
+    request = llHTTPRequest(API_BASE + "/api/terminal/payment", signedHeaders(eventID, body), body);
     gRequestIds += [request];
     gQueueKeys += [queueKey];
 }
@@ -73,10 +75,11 @@ sendHealthResponse(string checkID) {
     llHTTPRequest(API_BASE + "/api/terminal/health", signedHeaders(eventID, body), body);
 }
 retryQueue() {
-    list keys = llLinksetDataFindKeys("^payment_", 0, MAX_QUEUED_PAYMENTS);
+    list keys;
     integer i;
     string queueKey;
     string packed;
+    keys = llLinksetDataFindKeys("^payment_", 0, MAX_QUEUED_PAYMENTS);
     i = 0;
     while (i < llGetListLength(keys)) {
         queueKey = llList2String(keys, i);
@@ -89,28 +92,39 @@ callbackResponse(key requestID, integer status, string message) {
     llHTTPResponse(requestID, status, message);
 }
 handleCallback(key requestID, string body) {
+    string signedBody;
+    string signature;
+    string eventID;
+    string kind;
+    integer sequence;
+    string createdAt;
+    string replayKey;
+    string payload;
+    string display;
+    string renter;
+    string endsAt;
     // The worker sends {version,signedBody,signature}; only signedBody is authenticated.
     if (llJsonValueType(body, []) != JSON_OBJECT) { callbackResponse(requestID, 400, "invalid callback"); return; }
     if ((integer)llJsonGetValue(body, ["version"]) != 1) { callbackResponse(requestID, 400, "unsupported callback version"); return; }
-    string signedBody = llJsonGetValue(body, ["signedBody"]);
-    string signature = llJsonGetValue(body, ["signature"]);
+    signedBody = llJsonGetValue(body, ["signedBody"]);
+    signature = llJsonGetValue(body, ["signature"]);
     if (signedBody == JSON_INVALID || signature == JSON_INVALID || llHMAC(TERMINAL_SECRET, signedBody, "sha256") != signature) { callbackResponse(requestID, 401, "invalid callback signature"); return; }
     if (llJsonValueType(signedBody, []) != JSON_OBJECT || (integer)llJsonGetValue(signedBody, ["version"]) != 1) { callbackResponse(requestID, 400, "invalid signed callback"); return; }
-    string eventID = llJsonGetValue(signedBody, ["eventId"]);
-    string kind = llJsonGetValue(signedBody, ["kind"]);
-    integer sequence = (integer)llJsonGetValue(signedBody, ["sequence"]);
-    string createdAt = llJsonGetValue(signedBody, ["createdAt"]);
+    eventID = llJsonGetValue(signedBody, ["eventId"]);
+    kind = llJsonGetValue(signedBody, ["kind"]);
+    sequence = (integer)llJsonGetValue(signedBody, ["sequence"]);
+    createdAt = llJsonGetValue(signedBody, ["createdAt"]);
     if (eventID == JSON_INVALID || kind == JSON_INVALID || sequence < 1 || createdAt == JSON_INVALID || llJsonGetValue(signedBody, ["payload"]) == JSON_INVALID) { callbackResponse(requestID, 400, "missing callback fields"); return; }
     if (sequence <= gSequence) { callbackResponse(requestID, 409, "callback replay or order violation"); return; }
-    string replayKey = "callback_event_" + eventID;
+    replayKey = "callback_event_" + eventID;
     if (llLinksetDataRead(replayKey) != "") { callbackResponse(requestID, 409, "callback replay"); return; }
     // Persist the replay marker and sequence before mutating display or acknowledging.
     if (llLinksetDataWrite(replayKey, (string)sequence) != XP_ERROR_NONE || llLinksetDataWrite("callback_sequence", (string)sequence) != XP_ERROR_NONE) { callbackResponse(requestID, 503, "callback state unavailable"); return; }
-    string payload = llJsonGetValue(signedBody, ["payload"]);
-    string display = llJsonGetValue(payload, ["display"]);
+    payload = llJsonGetValue(signedBody, ["payload"]);
+    display = llJsonGetValue(payload, ["display"]);
     if (display != JSON_INVALID && llJsonValueType(display, []) == JSON_OBJECT) {
-        string renter = llJsonGetValue(display, ["renter"]);
-        string endsAt = llJsonGetValue(display, ["endsAt"]);
+        renter = llJsonGetValue(display, ["renter"]);
+        endsAt = llJsonGetValue(display, ["endsAt"]);
         if (renter == JSON_NULL) gRenter = "Available"; else if (renter != JSON_INVALID) gRenter = renter;
         if (endsAt == JSON_NULL) gEndsAt = 0; else if (endsAt != JSON_INVALID) gEndsAt = (integer)endsAt;
     }
@@ -143,16 +157,21 @@ default {
         retryQueue();
     }
     money(key payer, integer amount) {
+        list keys;
+        string eventID;
+        string body;
+        string queueKey;
+        integer persisted;
         // SL's money event has no transaction ID. Persist our UUID before HTTPS.
-        list keys = llLinksetDataFindKeys("^payment_", 0, MAX_QUEUED_PAYMENTS);
+        keys = llLinksetDataFindKeys("^payment_", 0, MAX_QUEUED_PAYMENTS);
         if (llGetListLength(keys) >= MAX_QUEUED_PAYMENTS) {
             llInstantMessage(payer, "Lake Tech Estates could not queue this payment confirmation. Contact estate support with your transaction history.");
             return;
         }
-        string eventID = (string)llGenerateKey();
-        string body = llList2Json(JSON_OBJECT, ["amountLinden", amount, "payerAvatarId", (string)payer, "payerName", llKey2Name(payer)]);
-        string queueKey = "payment_" + eventID;
-        integer persisted = llLinksetDataWrite(queueKey, llList2Json(JSON_OBJECT, ["eventId", eventID, "body", body]));
+        eventID = (string)llGenerateKey();
+        body = llList2Json(JSON_OBJECT, ["amountLinden", amount, "payerAvatarId", (string)payer, "payerName", llKey2Name(payer)]);
+        queueKey = "payment_" + eventID;
+        persisted = llLinksetDataWrite(queueKey, llList2Json(JSON_OBJECT, ["eventId", eventID, "body", body]));
         if (persisted != XP_ERROR_NONE) {
             llOwnerSay("Lake Tech Estates terminal queue persistence failed; no HTTP confirmation was sent.");
             llInstantMessage(payer, "Lake Tech Estates could not durably queue this payment event. Contact estate support with your transaction history.");
@@ -176,22 +195,26 @@ default {
         } else callbackResponse(requestID, 405, "POST required");
     }
     http_response(key requestID, integer status, list metadata, string body) {
+        integer i;
+        integer at;
+        string renter;
+        string ends;
+        list events;
+        string eventJson;
+        string queueKey;
         if (requestID == gPollRequest) {
             gPollRequest = NULL_KEY;
             if (status == 200) {
                 gLastPollSuccess = llGetUnixTime();
                 gSequence = (integer)llJsonGetValue(body, ["sequence"]);
-                string renter = llJsonGetValue(body, ["renter"]);
+                renter = llJsonGetValue(body, ["renter"]);
                 if (renter == JSON_NULL) gRenter = "Available";
                 else gRenter = renter;
-                string ends = llJsonGetValue(body, ["endsAt"]);
+                ends = llJsonGetValue(body, ["endsAt"]);
                 if (ends == JSON_NULL) gEndsAt = 0;
                 else gEndsAt = (integer)ends;
                 gPayPrice = (integer)llJsonGetValue(body, ["payPrice"]);
                 updateDisplay();
-                integer i;
-                list events;
-                string eventJson;
                 events = llJson2List(llJsonGetValue(body, ["events"]));
                 i = 0;
                 while (i < llGetListLength(events)) {
@@ -206,9 +229,9 @@ default {
             gRegisterRequest = NULL_KEY;
             return;
         }
-        integer at = llListFindList(gRequestIds, [requestID]);
+        at = llListFindList(gRequestIds, [requestID]);
         if (at != -1) {
-            string queueKey = llList2String(gQueueKeys, at);
+            queueKey = llList2String(gQueueKeys, at);
             if (status >= 200 && status < 300) llLinksetDataDelete(queueKey);
             gRequestIds = llDeleteSubList(gRequestIds, at, at);
             gQueueKeys = llDeleteSubList(gQueueKeys, at, at);
