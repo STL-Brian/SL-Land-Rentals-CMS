@@ -23,7 +23,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{id:stri
       const r = await db.query("UPDATE terminals SET secret_ciphertext=$2,enabled=true WHERE id=$1", [id, sealTerminalSecret(secret, cfg.terminalEncryptionKey)]);
       if (!r.rowCount) return false;
     } else if (parsed.data.action === "REVOKE") {
-      const r = await db.query("UPDATE terminals SET enabled=false WHERE id=$1 AND enabled", [id]); if (!r.rowCount) return false;
+      const r = await db.query("DELETE FROM terminals WHERE id=$1 AND enabled RETURNING id", [id]); if (!r.rowCount) return false;
     } else {
       const r = await db.query("UPDATE terminals SET listing_id=$2 WHERE id=$1 AND enabled", [id, parsed.data.listingId]); if (!r.rowCount) return false;
     }

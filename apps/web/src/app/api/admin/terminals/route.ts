@@ -11,7 +11,7 @@ export async function GET(): Promise<NextResponse> {
   const viewer = await currentViewer();
   if (!viewer) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   if (!can(viewer.role, "terminal:manage")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const result = await query(`SELECT t.id,t.listing_id,t.object_id,t.owner_id,t.shard,t.enabled,t.last_seen_at,t.created_at,l.name AS listing_name FROM terminals t JOIN listings l ON l.id=t.listing_id ORDER BY t.created_at DESC`);
+  const result = await query(`SELECT t.id,t.listing_id,t.object_id,t.shard,t.enabled,t.last_seen_at,t.created_at,l.name AS listing_name FROM terminals t JOIN listings l ON l.id=t.listing_id WHERE t.enabled ORDER BY t.created_at DESC`);
   return NextResponse.json({ terminals: result.rows }, { headers: noStoreHeaders });
 }
 

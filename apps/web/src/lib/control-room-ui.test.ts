@@ -9,6 +9,15 @@ describe("Control Room management controls",()=>{
  it("does not ask operators for a configurable grid",()=>{const html=renderToStaticMarkup(React.createElement(TerminalProvisionForm,{listings:[{id:"a",name:"Parcel A"}]}));expect(html).not.toContain("Grid");expect(html).not.toContain('name="shard"');});
  it("renders recovery controls only for actionable provider states",()=>{const failed=renderToStaticMarkup(React.createElement(ProviderRecoveryAction,{id:"a",state:"FAILED"}));const queued=renderToStaticMarkup(React.createElement(ProviderRecoveryAction,{id:"b",state:"QUEUED"}));expect(failed).toContain("Retry");expect(failed).toContain("Resolve");expect(queued).toContain("In progress");expect(queued).not.toContain("Retry");});
  it("uses accessible form surfaces instead of browser prompt dialogs",()=>{for(const file of ["admin-ops.tsx","rental-controls.tsx","reservation-actions.tsx","user-role-form.tsx"]){const source=readFileSync(new URL(`../components/${file}`,import.meta.url),"utf8");expect(source).not.toMatch(/\bprompt\(|\bconfirm\(|\balert\(/);}});
- it("keeps terminal health controls and owner identity visible without callback URLs",()=>{const page=readFileSync(new URL("../app/management/terminals/page.tsx",import.meta.url),"utf8");expect(page).toContain("si.avatar_id");expect(page).toContain("TerminalHealthAction");expect(page).not.toContain("Callback URL");expect(page).not.toContain("callback_url");});
+ it("shows only owner names and deletes revoked terminal bindings", () => {
+   const page = readFileSync(new URL("../app/management/terminals/page.tsx", import.meta.url), "utf8");
+   const route = readFileSync(new URL("../app/api/admin/terminals/[id]/route.ts", import.meta.url), "utf8");
+   expect(page).toContain("u.display_name owner_name");
+   expect(page).not.toContain("<small className=\"mono\">{t.owner_id}</small>");
+   expect(page).toContain("WHERE t.enabled");
+   expect(route).toContain("DELETE FROM terminals");
+   expect(readFileSync(new URL("../../../../packages/db/migrations/015_terminal_revocation_delete.sql", import.meta.url), "utf8")).toContain("DELETE FROM terminals WHERE enabled = false");
+ });
+
  it("filters simulation workers from the service health query",()=>{const page=readFileSync(new URL("../app/management/audit/page.tsx",import.meta.url),"utf8");expect(page).toContain("mode NOT IN ('simulation','SIMULATION')");expect(page).toContain("callback backlog");});
 });
